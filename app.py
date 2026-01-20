@@ -451,8 +451,8 @@ def render_data_table(
         "suppressMenu": True,
     })
 
-    # Team column (ungrouped, NOT pinned - scrolls with data)
-    # Only Logo column is pinned; Team scrolls away with phase columns
+    # Team column - pinned on desktop (>768px), scrolls on mobile
+    # Pinning is set dynamically via onGridReady based on screen width
     column_defs.append({
         "field": "Team",
         "headerName": "",  # No header text - just shows team names in cells
@@ -463,6 +463,7 @@ def render_data_table(
         "suppressMenu": True,  # Suppress column menu entirely
         "cellClass": "team-divider",  # Divider line between Team and first phase
         "headerClass": "team-divider-header",
+        "pinned": "left",  # Default to pinned, JS will unpin on mobile
     })
 
     # Group phase columns by phase name for two-tier headers
@@ -556,6 +557,19 @@ def render_data_table(
         }
     """)
 
+    # JavaScript to unpin Team column on mobile (<768px)
+    on_grid_ready = JsCode("""
+        function(params) {
+            const api = params.api;
+            const isMobile = window.innerWidth < 768;
+            if (isMobile) {
+                api.applyColumnState({
+                    state: [{ colId: 'Team', pinned: null }]
+                });
+            }
+        }
+    """)
+
     # Build grid options with manual columnDefs
     grid_options = {
         "columnDefs": column_defs,
@@ -565,6 +579,7 @@ def render_data_table(
         },
         "onSortChanged": on_sort_changed,
         "onFirstDataRendered": on_sort_changed,
+        "onGridReady": on_grid_ready,
         "domLayout": "normal",
         "rowHeight": 36,
         "headerHeight": 32,
