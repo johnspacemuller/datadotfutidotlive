@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+from st_aggrid import AgGrid, JsCode
 
 # =============================================================================
 # CONFIGURATION
@@ -114,6 +115,47 @@ METRIC_DISPLAY_NAMES = {
     "percent_of_total_percentile": "Share",
 }
 
+# =============================================================================
+# MLS CONFERENCE DEFINITIONS (2025 Season)
+# =============================================================================
+
+MLS_CONFERENCES = {
+    "Eastern Conference": [
+        "Atlanta United",
+        "Charlotte",
+        "Chicago Fire",
+        "Cincinnati",
+        "Columbus Crew",
+        "DC United",
+        "Inter Miami",
+        "CF Montreal",
+        "Nashville SC",
+        "New England Revolution",
+        "New York City FC",
+        "New York Red Bulls",
+        "Orlando City",
+        "Philadelphia Union",
+        "Toronto FC",
+    ],
+    "Western Conference": [
+        "Austin FC",
+        "Colorado Rapids",
+        "FC Dallas",
+        "Houston Dynamo",
+        "LA Galaxy",
+        "LAFC",
+        "Minnesota United",
+        "Portland Timbers",
+        "Real Salt Lake",
+        "San Diego FC",
+        "San Jose Earthquakes",
+        "Seattle Sounders",
+        "Sporting Kansas City",
+        "St. Louis City",
+        "Vancouver Whitecaps",
+    ],
+}
+
 
 # =============================================================================
 # DATA LOADING
@@ -169,14 +211,16 @@ def create_wide_table(
     df: pd.DataFrame,
     phases: list[str],
     show_percentiles: bool,
-) -> pd.DataFrame:
+) -> tuple[pd.DataFrame, list[tuple[str, str, str, str]]]:
     """
-    Transform long-format data into a wide table for display.
+    Transform long-format data into a wide table for display with AgGrid.
 
     Creates a table where:
     - Rows are teams (sorted alphabetically)
-    - Columns are grouped by phase, with sub-columns for each metric
-    - Values are formatted appropriately (percentages, decimals, etc.)
+    - First column is team logo (for pinning)
+    - Second column is team name (for pinning)
+    - Remaining columns are phase metrics with flat "Phase | Metric" names
+      (AgGrid handles column grouping via GridOptionsBuilder)
 
     Args:
         df: Source data with columns: team_name, phase, and metric columns
@@ -184,14 +228,15 @@ def create_wide_table(
         show_percentiles: If True, show percentile rankings; if False, show raw values
 
     Returns:
-        A styled DataFrame ready for display, or empty DataFrame if no data
+        Tuple of (DataFrame ready for display, columns_config list)
+        columns_config contains (phase_display, metric_display, raw_metric, raw_phase) tuples
     """
     metrics = PERCENTILE_METRICS if show_percentiles else VALUE_METRICS
 
     # Filter to only the phases we want
     df_filtered = df[df["phase"].isin(phases)]
     if df_filtered.empty:
-        return pd.DataFrame()
+        return pd.DataFrame(), []
 
     # Pivot: rows=teams, columns=(metric, phase)
     pivoted = df_filtered.pivot(index="team_name", columns="phase", values=metrics)
@@ -204,52 +249,46 @@ def create_wide_table(
             metric_display = METRIC_DISPLAY_NAMES[metric]
             columns_config.append((phase_display, metric_display, metric, phase))
 
-    # Extract and transform each column
-    result_data = {}
-    for phase_display, metric_display, metric, phase in columns_config:
-        try:
-            col = pivoted[(metric, phase)]
-        except KeyError:
-            # Phase might not exist for all teams
-            col = pd.Series([None] * len(pivoted), index=pivoted.index)
+    # Extract and transform each column with flat column names for AgGrid
+    result_data = {"Logo": [], "Team": []}
 
-        # Transform values for display
-        if metric == "count":
-            # Convert total count to per-game average
-            col = (col / GAMES_PLAYED).round(1)
-        elif metric in ("success_rate", "percent_of_total") or metric.endswith("_percentile"):
-            # Convert decimals to percentages (0.65 -> 65)
-            col = col * 100
+    # Initialize phase columns
+    for phase_display, metric_display, _, _ in columns_config:
+        col_name = f"{phase_display} | {metric_display}"
+        result_data[col_name] = []
 
-        result_data[(phase_display, metric_display)] = col
+    # Get sorted team names
+    team_names = sorted(pivoted.index.tolist())
 
-    # Assemble final DataFrame with MultiIndex columns
+    for team in team_names:
+        # Add logo and team name
+        result_data["Logo"].append(get_team_logo_base64(team))
+        result_data["Team"].append(team)
+
+        # Add phase metric values
+        for phase_display, metric_display, metric, phase in columns_config:
+            col_name = f"{phase_display} | {metric_display}"
+            try:
+                val = pivoted.loc[team, (metric, phase)]
+            except KeyError:
+                val = None
+
+            # Transform values for display
+            if val is not None and pd.notna(val):
+                if metric == "count":
+                    # Convert total count to per-game average
+                    val = round(val / GAMES_PLAYED, 1)
+                elif metric.endswith("_percentile"):
+                    # Convert decimals to percentages and round to integer
+                    val = round(val * 100)
+                elif metric in ("success_rate", "percent_of_total"):
+                    # Convert decimals to percentages with 1 decimal place
+                    val = round(val * 100, 1)
+
+            result_data[col_name].append(val)
+
     result = pd.DataFrame(result_data)
-    result.columns = pd.MultiIndex.from_tuples(result.columns)
-    result.index.name = "Team"
-    result = result.sort_index()
-
-    # Apply display formatting
-    def fmt_percent(x):
-        return "-" if pd.isna(x) else f"{x:.1f}%"
-
-    def fmt_integer(x):
-        return "-" if pd.isna(x) else f"{int(x)}"
-
-    def fmt_decimal(x):
-        return "-" if pd.isna(x) else f"{x:.1f}"
-
-    format_dict = {}
-    for phase_display, metric_display, metric, _ in columns_config:
-        key = (phase_display, metric_display)
-        if metric in ("success_rate", "percent_of_total"):
-            format_dict[key] = fmt_percent
-        elif metric.endswith("_percentile"):
-            format_dict[key] = fmt_integer
-        elif metric == "count":
-            format_dict[key] = fmt_decimal
-
-    return result.style.format(format_dict, na_rep="-")
+    return result, columns_config
 
 
 # =============================================================================
@@ -261,6 +300,16 @@ def create_wide_table(
 def get_logo_base64() -> str:
     """Load the futi logo and return as a base64 data URI for embedding in HTML."""
     logo_path = Path(__file__).resolve().parent / "futi_logo.png"
+    if logo_path.exists():
+        with open(logo_path, "rb") as f:
+            encoded = base64.b64encode(f.read()).decode()
+            return f"data:image/png;base64,{encoded}"
+    return ""
+
+
+def get_team_logo_base64(team_name: str) -> str:
+    """Load a team's logo and return as a base64 data URI for embedding."""
+    logo_path = Path(__file__).resolve().parent / "logos" / f"{team_name}.png"
     if logo_path.exists():
         with open(logo_path, "rb") as f:
             encoded = base64.b64encode(f.read()).decode()
@@ -309,25 +358,25 @@ def render_toggle(options: list[str], key: str, default: str) -> str:
     )
 
 
-def render_filters(teams: list[str]) -> tuple[str, str]:
+def render_filters() -> tuple[str, str]:
     """
     Render the filter controls and return selected values.
 
     Returns:
-        Tuple of (selected_team, selected_category)
+        Tuple of (selected_conference, selected_category)
     """
-    team_options = ["All teams"] + teams
+    conference_options = ["All MLS", "Eastern Conference", "Western Conference"]
     category_options = list(PHASE_CATEGORIES.keys())
 
-    col_team, col_category, col_toggle = st.columns(
+    col_conference, col_category, col_toggle = st.columns(
         [3, 4, 3],
         vertical_alignment="center",
     )
 
-    with col_team:
-        team_choice = st.selectbox(
-            "Team",
-            team_options,
+    with col_conference:
+        conference_choice = st.selectbox(
+            "Conference",
+            conference_options,
             index=0,
             label_visibility="collapsed",
         )
@@ -341,26 +390,309 @@ def render_filters(teams: list[str]) -> tuple[str, str]:
         )
 
     with col_toggle:
-        # Right-align the toggle
-        st.markdown(
-            "<div style='display:flex; justify-content:flex-end;'>",
-            unsafe_allow_html=True,
-        )
         render_toggle(["Values", "Percentiles"], key="view_mode", default="Values")
-        st.markdown("</div>", unsafe_allow_html=True)
 
-    return team_choice, category_choice
+    return conference_choice, category_choice
 
 
-def render_data_table(data) -> None:
-    """Render the main data table, or a message if empty."""
-    # Handle both DataFrame and Styler objects
-    is_empty = data.empty if isinstance(data, pd.DataFrame) else data.data.empty
+def render_data_table(
+    data: pd.DataFrame,
+    columns_config: list[tuple[str, str, str, str]],
+) -> None:
+    """Render the main data table with AgGrid, using pinned columns and two-tier headers.
 
-    if is_empty:
+    Args:
+        data: DataFrame to display
+        columns_config: List of (phase_display, metric_display, raw_metric, raw_phase) tuples
+                       for configuring number formatting and column grouping
+    """
+    if data.empty:
         st.info("No data matches the current filters.")
-    else:
-        st.dataframe(data, use_container_width=True, height=560)
+        return
+
+    # Custom cell renderer for logo images
+    logo_renderer = JsCode("""
+        class LogoRenderer {
+            init(params) {
+                this.eGui = document.createElement('div');
+                this.eGui.style.display = 'flex';
+                this.eGui.style.alignItems = 'center';
+                this.eGui.style.justifyContent = 'center';
+                this.eGui.style.height = '100%';
+                if (params.value) {
+                    const img = document.createElement('img');
+                    img.src = params.value;
+                    img.style.width = '24px';
+                    img.style.height = '24px';
+                    img.style.objectFit = 'contain';
+                    this.eGui.appendChild(img);
+                }
+            }
+            getGui() { return this.eGui; }
+            refresh() { return false; }
+        }
+    """)
+
+    # Build columnDefs manually to support two-tier grouped headers
+    column_defs = []
+
+    # Logo column (ungrouped, pinned left)
+    column_defs.append({
+        "field": "Logo",
+        "headerName": "",
+        "pinned": "left",
+        "width": 50,
+        "maxWidth": 50,
+        "minWidth": 50,
+        "cellRenderer": logo_renderer,
+        "sortable": False,
+        "filter": False,
+        "resizable": False,
+        "suppressMenu": True,
+    })
+
+    # Team column (ungrouped, NOT pinned - scrolls with data)
+    # Only Logo column is pinned; Team scrolls away with phase columns
+    column_defs.append({
+        "field": "Team",
+        "headerName": "",  # No header text - just shows team names in cells
+        "width": 200,
+        "minWidth": 180,
+        "sortable": True,
+        "filter": False,  # No filter icon in header
+        "suppressMenu": True,  # Suppress column menu entirely
+        "cellClass": "team-divider",  # Divider line between Team and first phase
+        "headerClass": "team-divider-header",
+    })
+
+    # Group phase columns by phase name for two-tier headers
+    from collections import OrderedDict
+    phase_groups = OrderedDict()
+
+    for phase_display, metric_display, metric, _ in columns_config:
+        col_name = f"{phase_display} | {metric_display}"
+
+        if phase_display not in phase_groups:
+            phase_groups[phase_display] = []
+
+        # Determine value formatter based on metric type
+        if metric in ("success_rate", "percent_of_total"):
+            # Percentage with 1 decimal and % symbol
+            value_formatter = JsCode(
+                "function(params) { return params.value != null ? params.value.toFixed(1) + '%' : '-'; }"
+            )
+        elif metric.endswith("_percentile"):
+            # Integer for percentiles
+            value_formatter = JsCode(
+                "function(params) { return params.value != null ? Math.round(params.value).toString() : '-'; }"
+            )
+        elif metric == "count":
+            # Decimal with 1 decimal place
+            value_formatter = JsCode(
+                "function(params) { return params.value != null ? params.value.toFixed(1) : '-'; }"
+            )
+        else:
+            value_formatter = None
+
+        # Add cellClass for the last metric (Share) to create divider between phase groups
+        # All numeric columns get "numeric-cell" for right-align; Share also gets "phase-divider"
+        if metric_display == "Share":
+            cell_class = "numeric-cell phase-divider"
+        else:
+            cell_class = "numeric-cell"
+
+        col_def = {
+            "field": col_name,
+            "headerName": metric_display,  # Just "Count", "Won", "Share"
+            "width": 65,
+            "minWidth": 60,
+            "valueFormatter": value_formatter,
+            "type": ["numericColumn"],
+            "cellClass": cell_class,
+            "sortable": True,
+            "filter": False,
+        }
+        if metric_display == "Share":
+            col_def["headerClass"] = "phase-divider-header"
+
+        phase_groups[phase_display].append(col_def)
+
+    # Add grouped columns to column_defs with alternating banding classes
+    for i, (phase_name, children) in enumerate(phase_groups.items()):
+        band_class = "phase-band-1" if i % 2 == 0 else "phase-band-2"
+        # Apply the same band class to child columns so second row headers match
+        for child in children:
+            # Combine with existing headerClass if present (e.g., phase-divider-header for Share)
+            existing_class = child.get("headerClass", "")
+            child["headerClass"] = f"{band_class} {existing_class}".strip()
+        column_defs.append({
+            "headerName": phase_name,  # Parent header: "Buildup", "Progression", etc.
+            "headerClass": band_class,  # Alternating background colors for visual banding
+            "children": children,       # Child columns: Count, Won, Share
+        })
+
+    # Build grid options with manual columnDefs
+    grid_options = {
+        "columnDefs": column_defs,
+        "defaultColDef": {
+            "sortable": True,
+            "resizable": True,
+        },
+        "domLayout": "normal",
+        "rowHeight": 36,
+        "headerHeight": 32,
+        "groupHeaderHeight": 32,
+        "suppressMovableColumns": True,
+        "enableRangeSelection": False,
+        "suppressRowClickSelection": True,
+    }
+
+    # Custom CSS for dark theme matching the app
+    # Dark band color used for header background
+    header_bg = "#0A2D3D"  # Matches phase-band-2 (darker shade)
+
+    custom_css = {
+        # Header styling - use dark band color
+        ".ag-header": {
+            "background-color": f"{header_bg} !important",
+            "border-bottom": "1px solid rgba(255,255,255,0.1) !important",
+        },
+        ".ag-header-cell": {
+            "background-color": f"{header_bg} !important",
+            "color": "rgba(255,255,255,0.6) !important",  # More muted for metric names
+            "font-weight": "600 !important",
+            "font-size": "0.75rem !important",  # Smaller for secondary headers
+            "text-transform": "uppercase !important",
+            "letter-spacing": "0.04em !important",
+        },
+        ".ag-header-cell-label": {
+            "justify-content": "center !important",
+        },
+        # Logo column header styling
+        ".ag-header-cell[col-id='Logo']": {
+            "border-right": "none !important",
+        },
+        # Group header (phase names) styling - top tier of two-tier headers
+        ".ag-header-group-cell": {
+            "color": "rgba(255,255,255,0.9) !important",
+            "font-weight": "700 !important",
+            "font-size": "0.9rem !important",
+            "border-bottom": "1px solid rgba(255,255,255,0.15) !important",
+            "border-right": "1px solid rgba(255,255,255,0.08) !important",  # Subtle vertical separator
+            "text-align": "center !important",  # Center the text
+        },
+        ".ag-header-group-cell-label": {
+            "width": "100% !important",
+            "display": "flex !important",
+            "justify-content": "center !important",
+            "text-align": "center !important",
+            "padding": "0 !important",
+        },
+        # Target the text span inside the group header label
+        ".ag-header-group-text": {
+            "text-align": "center !important",
+        },
+        # Phase banding - alternating background colors for both header rows
+        # Apply to group headers (first row - phase names)
+        ".ag-header-group-cell.phase-band-1": {
+            "background-color": "#0E374B !important",  # COLORS['dark2'] - lighter band
+        },
+        ".ag-header-group-cell.phase-band-2": {
+            "background-color": "#0A2D3D !important",  # Darker band (matches header_bg)
+        },
+        # Apply to child headers (second row - COUNT, WON, SHARE)
+        ".ag-header-cell.phase-band-1": {
+            "background-color": "#0E374B !important",  # COLORS['dark2'] - lighter band
+        },
+        ".ag-header-cell.phase-band-2": {
+            "background-color": "#0A2D3D !important",  # Darker band (matches header_bg)
+        },
+        # Divider line between Team column and first phase
+        ".team-divider": {
+            "border-right": "1px solid rgba(255,255,255,0.15) !important",
+        },
+        ".team-divider-header": {
+            "border-right": "1px solid rgba(255,255,255,0.15) !important",
+        },
+        # Divider line between phase clusters (after Share column)
+        ".phase-divider": {
+            "border-right": "1px solid rgba(255,255,255,0.15) !important",
+        },
+        ".phase-divider-header": {
+            "border-right": "1px solid rgba(255,255,255,0.15) !important",
+        },
+        # Row styling
+        ".ag-row": {
+            "background-color": f"{COLORS['dark1']} !important",
+            "border-bottom": "1px solid rgba(255,255,255,0.05) !important",
+        },
+        ".ag-row-odd": {
+            "background-color": "rgba(14,55,75,0.3) !important",
+        },
+        ".ag-row:hover": {
+            "background-color": "rgba(15,230,180,0.08) !important",
+        },
+        # Cell styling - base styles
+        ".ag-cell": {
+            "color": "rgba(255,255,255,0.9) !important",
+            "display": "flex !important",
+            "align-items": "center !important",
+            "font-size": "0.875rem !important",
+        },
+        # Numeric cells right-aligned
+        ".numeric-cell": {
+            "justify-content": "flex-end !important",
+            "padding-right": "6px !important",
+        },
+        # Pinned columns styling (logo column only - no border)
+        ".ag-pinned-left-header": {
+            "background-color": f"{header_bg} !important",  # Match header background
+            # No border - seamless transition to scrollable area
+        },
+        ".ag-pinned-left-cols-container .ag-row": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        ".ag-pinned-left-cols-container .ag-row-odd": {
+            "background-color": "rgba(14,55,75,0.3) !important",
+        },
+        ".ag-pinned-left-cols-container": {
+            # No border - Team column now scrolls with data
+        },
+        # Team column left-align (now in main scrollable area, not pinned)
+        ".ag-cell[col-id='Team']": {
+            "justify-content": "flex-start !important",
+            "padding-left": "12px !important",
+        },
+        # Root/wrapper styling
+        ".ag-root-wrapper": {
+            "background-color": f"{COLORS['dark1']} !important",
+            "border": "none !important",
+            "border-radius": "0.5rem !important",
+        },
+        ".ag-body-viewport": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        # Scrollbar styling
+        ".ag-body-horizontal-scroll-viewport::-webkit-scrollbar": {
+            "height": "8px !important",
+        },
+        ".ag-body-horizontal-scroll-viewport::-webkit-scrollbar-track": {
+            "background": f"{COLORS['dark']} !important",
+        },
+        ".ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb": {
+            "background": "rgba(255,255,255,0.2) !important",
+            "border-radius": "4px !important",
+        },
+    }
+
+    AgGrid(
+        data,
+        gridOptions=grid_options,
+        height=560,
+        allow_unsafe_jscode=True,
+        custom_css=custom_css,
+        theme="balham-dark",
+    )
 
 
 # =============================================================================
@@ -567,16 +899,8 @@ def inject_styles() -> None:
             padding: 0 !important;
         }}
 
-        /* === Data table === */
-        div[data-testid="stDataFrame"] [role="columnheader"] {{
-            background: {COLORS['dark2']} !important;
-            color: rgba(255,255,255,0.70) !important;
-        }}
-
-        div[data-testid="stDataFrame"] [role="gridcell"],
-        div[data-testid="stDataFrame"] [role="columnheader"] {{
-            min-width: 85px !important;
-        }}
+        /* === AgGrid container styling === */
+        /* The AgGrid component styles are applied via custom_css parameter in render_data_table() */
 
         /* === Navigation tabs === */
         .stTabs [data-baseweb="tab-list"] {{
@@ -617,6 +941,7 @@ def inject_styles() -> None:
         .stTabs [data-baseweb="tab-border"] {{
             display: none;
         }}
+
         </style>
         """,
         unsafe_allow_html=True,
@@ -640,27 +965,40 @@ def render_phases_tab() -> None:
     df["team_name"] = df["team_name"].astype(str)
     df["phase"] = df["phase"].astype(str)
 
-    # Filter controls
-    teams = sorted(df["team_name"].unique().tolist())
-
     # Single container for filters + table
     with st.container(border=True):
-        team_choice, category_choice = render_filters(teams)
+        conference_choice, category_choice = render_filters()
 
         # Apply filters
         filtered_df = df.copy()
-        if team_choice != "All teams":
-            filtered_df = filtered_df[filtered_df["team_name"] == team_choice]
+        if conference_choice != "All MLS":
+            conference_teams = MLS_CONFERENCES.get(conference_choice, [])
+            filtered_df = filtered_df[filtered_df["team_name"].isin(conference_teams)]
 
         phases_to_show = PHASE_CATEGORIES[category_choice]
         show_percentiles = st.session_state.get("view_mode", "Values") == "Percentiles"
 
         # Transform and display
-        table_data = create_wide_table(filtered_df, phases_to_show, show_percentiles)
+        table_data, columns_config = create_wide_table(filtered_df, phases_to_show, show_percentiles)
 
         st.markdown("<div style='height: 6px;'></div>", unsafe_allow_html=True)
 
-        render_data_table(table_data)
+        render_data_table(table_data, columns_config)
+
+        # Download link below the table - small right-aligned text
+        if not table_data.empty:
+            # Only export Team + phase metric columns (exclude Logo and any auto-generated columns)
+            export_cols = [c for c in table_data.columns if c != "Logo" and not c.startswith("_")]
+            export_df = table_data[export_cols]
+            csv_data = export_df.to_csv(index=False)
+            csv_b64 = base64.b64encode(csv_data.encode()).decode()
+            st.markdown(
+                f'<div style="text-align: right; margin-top: -1.5rem;">'
+                f'<a href="data:text/csv;base64,{csv_b64}" download="futi_phases.csv" '
+                f'style="color: rgba(255,255,255,0.4); font-size: 0.75rem; text-decoration: none;">'
+                f'Download CSV</a></div>',
+                unsafe_allow_html=True,
+            )
 
 
 # def render_team_stats_tab() -> None:

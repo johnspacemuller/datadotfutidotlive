@@ -1,0 +1,185 @@
+# Progress Notes: Team Logos and Collapsible Column Refactor
+
+## Active Issues
+
+*No critical issues at this time.*
+
+---
+
+## Current Session - 2026-01-20
+
+### Completed This Session
+
+#### ✅ PRIORITY 1: Team Column Scroll Behavior - CLOSED
+
+**Final Decision**: Team column is NOT pinned. Only Logo column is frozen.
+
+AG Grid doesn't support "scroll priority" (Team appearing before phase columns when scrolling left) without custom JavaScript. Current behavior accepted as good enough.
+
+**Current State**:
+- Logo column: pinned left (50px, always visible)
+- Team column: scrolls with phase columns (200px, not pinned)
+
+#### ✅ Task 8: Right-Align Numbers in Data Columns - COMPLETE
+
+**Implementation**:
+1. Added `cellClass: "numeric-cell"` to all phase column definitions (Count, Won, Share)
+2. Added CSS rule `.numeric-cell` with `justify-content: flex-end` for right-alignment (flexbox compatible)
+3. Reduced column width from 80px to 65px (minWidth 60px) for tighter spacing
+4. Reduced cell padding from 12px to 6px
+
+**Files Modified**: `app.py`
+- Lines 461-464: cellClass assignment logic
+- Lines 469-470: column width (65px) and minWidth (60px)
+- Lines 588-591: `.numeric-cell` CSS rule
+
+**Result**:
+- All numeric values (Count, Won, Share columns) are right-aligned
+- Decimal points and percentage symbols align vertically
+- Columns are narrower with less spacing between them
+- Headers remain center-aligned (COUNT, WON, SHARE fully visible)
+- Team column remains left-aligned (via specific CSS selector)
+
+#### ✅ Task 9: Match Second Row Header Banding to First Row - COMPLETE
+
+**Implementation**:
+1. Modified the column group loop (lines 486-489) to pass `headerClass` (band class) down to child columns
+2. Combined existing headerClass (e.g., `phase-divider-header` for Share) with band class using string concatenation
+3. Updated CSS rules (lines 557-571) to apply band colors to both header types:
+   - `.ag-header-group-cell.phase-band-1/2` for first row (phase names)
+   - `.ag-header-cell.phase-band-1/2` for second row (COUNT, WON, SHARE)
+
+**Files Modified**: `app.py`
+- Lines 486-489: Loop to assign `headerClass` to child columns
+- Lines 557-571: CSS selectors for both header row types with band colors
+
+**Result**:
+- COUNT, WON, SHARE headers now have the same background color as their parent phase header
+- Buildup group: both rows use `#0E374B` (phase-band-1)
+- Progression group: both rows use `#0A2D3D` (phase-band-2)
+- Alternating pattern continues consistently across all phase groups
+- Divider lines still work correctly (phase-divider-header class combined with band class)
+
+#### ✅ Task 10: CSV Download Button - COMPLETE (Redesigned)
+
+**Problem**: Trying to squeeze a download button into the filter row caused endless CSS alignment issues.
+
+**Solution**: Moved download button below the table using native `st.download_button`.
+
+**Why this is better**:
+1. No CSS fighting - uses Streamlit's native component
+2. Cleaner UI - filters row is less cramped
+3. More discoverable - button is near the data it exports
+4. Simpler code - removed ~50 lines of hacky CSS
+
+**Implementation**:
+1. Removed download column from filter row (now 3 columns: team, category, toggle)
+2. Added `st.download_button` after `render_data_table()` call
+3. Styled with subtle dark theme: transparent background, light border, green hover
+
+**Files Modified**: `app.py`
+- `render_filters()`: Simplified to return 2 values (removed download_placeholder)
+- `render_phases_tab()`: Added native download button below table
+- CSS: Replaced complex custom button styles with simple download button styling
+
+**Result**:
+- Clean filter row with just the essential controls
+- Download button below table with dark theme styling
+- Green hover effect matching app accent color
+- No alignment issues
+
+### Remaining Tasks
+
+*All tasks complete!*
+
+---
+
+## Current Table State
+
+**Working Features**:
+- ✓ Team logos in 50px pinned column
+- ✓ Team name column (scrolls with data)
+- ✓ Two-tiered headers (phase groups with metric sub-headers)
+- ✓ Number formatting (decimals, percentages)
+- ✓ Phase header alternating colors (banding)
+- ✓ Vertical divider lines between phase clusters
+- ✓ Team column has no filter icon
+- ✓ Dark theme styling
+- ✓ Numbers right-aligned in data cells
+- ✓ Second row headers matching banding (COUNT, WON, SHARE match parent phase color)
+
+**Needs Implementation**:
+*None - all tasks complete!*
+
+**Recent Changes (2026-01-20)**:
+- Task 10: Moved download button below table (simpler, no CSS fighting)
+
+---
+
+# Completed Tasks (Compressed)
+
+<details>
+<summary>Click to expand full session history</summary>
+
+## Sessions 1-9 Summary
+
+### Session 1-2: Initial Implementation
+- Task 1 (Logos): Complete - Added `get_team_logo_base64()` function, logos display in 50px column
+- Task 2 (Sticky columns): FAILED - CSS sticky doesn't work with Glide Data Grid canvas rendering
+- Bug fixes: TypeError with tuple keys, Team header nested tuple issue
+
+### Session 3: AgGrid Migration
+- Task 2 (Sticky): Complete - Switched from `st.dataframe()` to `streamlit-aggrid`
+- Task 3 (Number formatting): Complete - JS valueFormatter functions for decimals/percentages
+- Added `streamlit-aggrid>=1.2` to requirements.txt
+
+### Session 4: Two-Tier Headers
+- Task 4: Complete - AG Grid column groups with `headerName` and `children` arrays
+- Manual `columnDefs` instead of `GridOptionsBuilder`
+- Phase names as group headers, metrics as sub-headers
+
+### Session 5: Scroll Behavior
+- Task 5: Complete - Only logo pinned, Team scrolls with data
+- Removed green border between pinned/scrollable areas
+- Team column widened to 200px
+
+### Session 6: Team Column Cleanup
+- Task 6: Partially complete - Removed filter icon, widened to 230px
+- **NOTE**: The "scroll priority" aspect was NOT actually achieved
+
+### Session 7: Visual Polish
+- Task 7: Complete - Phase header banding with alternating colors
+- Improved metric header styling (uppercase, muted)
+- Vertical separators between phases
+
+### Session 8: Header Refinements
+- Removed "Team" text from header
+- Header background set to dark band color (#0A2D3D)
+- Phase group headers centered
+
+### Session 9: Divider Lines
+- Added divider lines between Team column and first phase
+- Added divider lines between phase clusters (after Share columns)
+
+### Key Technical Details
+
+**Stack**: Streamlit + streamlit-aggrid (AG Grid)
+
+**Column Structure**:
+```
+Logo (pinned) | Team (scrollable) | Phase Groups...
+     50px     |      230px        | [Count|Won|Share] x N
+```
+
+**Styling Constants**:
+- `COLORS['dark1']`: Main background
+- `COLORS['dark2']`: #0E374B (band color 1)
+- `#0A2D3D`: Band color 2 (darker)
+- `COLORS['green']`: #0FE6B4 (accent)
+
+**Key Functions in app.py**:
+- `get_team_logo_base64(team_name)`: Returns base64 data URI for logo
+- `create_wide_table(df, phases, percentiles)`: Returns (DataFrame, columns_config)
+- `render_data_table(data, columns_config)`: Renders AgGrid with all configuration
+
+</details>
