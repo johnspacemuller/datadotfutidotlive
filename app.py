@@ -683,6 +683,30 @@ def render_data_table(
             "background": "rgba(255,255,255,0.2) !important",
             "border-radius": "4px !important",
         },
+        # Cell focus/selection styling - use green accent
+        ".ag-cell-focus": {
+            "border": f"1px solid {COLORS['green']} !important",
+            "outline": "none !important",
+        },
+        ".ag-cell:focus": {
+            "border": f"1px solid {COLORS['green']} !important",
+            "outline": "none !important",
+        },
+        # Sorted column header styling
+        ".ag-header-cell-sorted-asc, .ag-header-cell-sorted-desc": {
+            "color": f"{COLORS['green']} !important",
+        },
+        ".ag-header-cell-sorted-asc .ag-header-cell-label, .ag-header-cell-sorted-desc .ag-header-cell-label": {
+            "color": f"{COLORS['green']} !important",
+        },
+        # Sort icon styling
+        ".ag-sort-ascending-icon, .ag-sort-descending-icon": {
+            "color": f"{COLORS['green']} !important",
+        },
+        # Highlight cells in the sorted column with subtle green tint
+        ".ag-cell.ag-column-sorted": {
+            "background-color": "rgba(15,230,180,0.06) !important",
+        },
     }
 
     AgGrid(
