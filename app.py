@@ -531,6 +531,31 @@ def render_data_table(
             "children": children,       # Child columns: Count, Won, Share
         })
 
+    # JavaScript to highlight sorted column cells via DOM manipulation
+    on_sort_changed = JsCode("""
+        function(params) {
+            const api = params.api;
+            const gridBody = document.querySelector('.ag-body-viewport');
+            if (!gridBody) return;
+
+            // Remove previous highlights
+            gridBody.querySelectorAll('.sorted-col-highlight').forEach(el => {
+                el.classList.remove('sorted-col-highlight');
+            });
+
+            // Find currently sorted column
+            const sortedCols = api.getColumnState().filter(c => c.sort);
+            if (sortedCols.length === 0) return;
+
+            const sortedColId = sortedCols[0].colId;
+
+            // Add highlight class to all cells in that column
+            gridBody.querySelectorAll(`[col-id="${sortedColId}"]`).forEach(cell => {
+                cell.classList.add('sorted-col-highlight');
+            });
+        }
+    """)
+
     # Build grid options with manual columnDefs
     grid_options = {
         "columnDefs": column_defs,
@@ -538,6 +563,8 @@ def render_data_table(
             "sortable": True,
             "resizable": True,
         },
+        "onSortChanged": on_sort_changed,
+        "onFirstDataRendered": on_sort_changed,
         "domLayout": "normal",
         "rowHeight": 36,
         "headerHeight": 32,
@@ -703,9 +730,9 @@ def render_data_table(
         ".ag-sort-ascending-icon, .ag-sort-descending-icon": {
             "color": f"{COLORS['green']} !important",
         },
-        # Highlight cells in the sorted column with subtle green tint
-        ".ag-cell.ag-column-sorted": {
-            "background-color": "rgba(15,230,180,0.06) !important",
+        # Highlight cells in the sorted column with green tint
+        ".sorted-col-highlight": {
+            "background-color": "rgba(15,230,180,0.12) !important",
         },
     }
 
