@@ -380,6 +380,13 @@ def inject_styles() -> None:
             font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
         }}
 
+        /* Restore Material Symbols font for Streamlit icon elements.
+           The stIconMaterial spans contain icon names as text that render as icons via ligatures.
+           Our global font-family override breaks this, so we must restore the icon font. */
+        [data-testid="stIconMaterial"] {{
+            font-family: 'Material Symbols Rounded', sans-serif !important;
+        }}
+
         /* === Layout === */
         :root {{
             --control-height: 44px;
