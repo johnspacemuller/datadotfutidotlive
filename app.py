@@ -90,6 +90,17 @@ PHASE_DISPLAY_NAMES = {
 }
 
 # =============================================================================
+# TEAM STYLES DEFINITIONS
+# =============================================================================
+
+STYLE_COLUMNS = [
+    "Bunker and Counter",
+    "Control and Regroup",
+    "Launch and Squish",
+    "Press and Possess",
+]
+
+# =============================================================================
 # METRIC DEFINITIONS
 #
 # The app shows three metrics per phase. These map CSV column names to display names.
@@ -155,6 +166,402 @@ MLS_CONFERENCES = {
         "Vancouver Whitecaps",
     ],
 }
+
+
+# =============================================================================
+# SHARED GRID COMPONENTS
+# =============================================================================
+
+# Logo renderer - identical JsCode used in both tables
+LOGO_RENDERER = JsCode("""
+    class LogoRenderer {
+        init(params) {
+            this.eGui = document.createElement('div');
+            this.eGui.style.display = 'flex';
+            this.eGui.style.alignItems = 'center';
+            this.eGui.style.justifyContent = 'center';
+            this.eGui.style.height = '100%';
+            if (params.value) {
+                const img = document.createElement('img');
+                img.src = params.value;
+                img.style.width = '24px';
+                img.style.height = '24px';
+                img.style.objectFit = 'contain';
+                this.eGui.appendChild(img);
+            }
+        }
+        getGui() { return this.eGui; }
+        refresh() { return false; }
+    }
+""")
+
+
+def create_logo_column_def() -> dict:
+    """Standard logo column definition for AgGrid tables."""
+    return {
+        "field": "Logo",
+        "headerName": "",
+        "pinned": "left",
+        "width": 50,
+        "maxWidth": 50,
+        "minWidth": 50,
+        "cellRenderer": LOGO_RENDERER,
+        "sortable": False,
+        "filter": False,
+        "resizable": False,
+        "suppressMenu": True,
+    }
+
+
+def create_team_column_def(cell_class: str = "team-divider") -> dict:
+    """Standard team name column definition for AgGrid tables."""
+    return {
+        "field": "Team",
+        "headerName": "",
+        "width": 200,
+        "minWidth": 180,
+        "sortable": True,
+        "filter": False,
+        "suppressMenu": True,
+        "cellClass": cell_class,
+        "headerClass": "team-divider-header",
+        "pinned": "left",
+    }
+
+
+def get_mobile_unpin_callback(size_to_fit: bool = False) -> JsCode:
+    """Create callback to unpin Team column on mobile (<768px)."""
+    if size_to_fit:
+        return JsCode("""
+            function(params) {
+                const api = params.api;
+                const isMobile = window.innerWidth < 768;
+                if (isMobile) {
+                    api.applyColumnState({
+                        state: [{ colId: 'Team', pinned: null }]
+                    });
+                }
+                api.sizeColumnsToFit();
+            }
+        """)
+    return JsCode("""
+        function(params) {
+            const api = params.api;
+            const isMobile = window.innerWidth < 768;
+            if (isMobile) {
+                api.applyColumnState({
+                    state: [{ colId: 'Team', pinned: null }]
+                });
+            }
+        }
+    """)
+
+
+# =============================================================================
+# SHARED CSS STYLES
+# =============================================================================
+
+# Dark band color used for header background
+HEADER_BG = "#0A2D3D"
+
+
+def get_base_aggrid_css() -> dict:
+    """Return CSS rules shared by all AgGrid tables."""
+    return {
+        # Row styling
+        ".ag-row": {
+            "background-color": f"{COLORS['dark1']} !important",
+            "border-bottom": "1px solid rgba(255,255,255,0.05) !important",
+        },
+        ".ag-row-odd": {
+            "background-color": "rgba(14,55,75,0.3) !important",
+        },
+        ".ag-row:hover": {
+            "background-color": "rgba(15,230,180,0.08) !important",
+        },
+        # Cell styling - base styles
+        ".ag-cell": {
+            "color": "rgba(255,255,255,0.9) !important",
+            "display": "flex !important",
+            "align-items": "center !important",
+            "font-size": "0.875rem !important",
+        },
+        # Numeric cells right-aligned
+        ".numeric-cell": {
+            "justify-content": "flex-end !important",
+            "padding-right": "6px !important",
+        },
+        # Divider classes
+        ".team-divider": {
+            "border-right": "1px solid rgba(255,255,255,0.15) !important",
+        },
+        ".team-divider-header": {
+            "border-right": "1px solid rgba(255,255,255,0.15) !important",
+        },
+        ".phase-divider": {
+            "border-right": "1px solid rgba(255,255,255,0.15) !important",
+        },
+        ".phase-divider-header": {
+            "border-right": "1px solid rgba(255,255,255,0.15) !important",
+        },
+        # Phase banding - alternating background colors
+        ".ag-header-cell.phase-band-1": {
+            "background-color": "#0E374B !important",
+        },
+        ".ag-header-cell.phase-band-2": {
+            "background-color": "#0A2D3D !important",
+        },
+        # Pinned left header - match body row color
+        ".ag-pinned-left-header": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        ".ag-pinned-left-header .ag-header-row": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        ".ag-pinned-left-header .ag-header-cell": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        ".ag-pinned-left-header .ag-header-group-cell": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        ".ag-header-cell[col-id='Team']": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        ".ag-pinned-left-cols-container .ag-row": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        ".ag-pinned-left-cols-container .ag-row-odd": {
+            "background-color": "rgba(14,55,75,0.3) !important",
+        },
+        # Team column left-align
+        ".ag-cell[col-id='Team']": {
+            "justify-content": "flex-start !important",
+            "padding-left": "12px !important",
+        },
+        # Root/wrapper styling
+        ".ag-root-wrapper": {
+            "background-color": f"{COLORS['dark1']} !important",
+            "border": "none !important",
+            "border-radius": "0.5rem !important",
+        },
+        ".ag-body-viewport": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        # Scrollbar styling
+        ".ag-body-horizontal-scroll-viewport::-webkit-scrollbar": {
+            "height": "8px !important",
+        },
+        ".ag-body-horizontal-scroll-viewport::-webkit-scrollbar-track": {
+            "background": f"{COLORS['dark']} !important",
+        },
+        ".ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb": {
+            "background": "rgba(255,255,255,0.2) !important",
+            "border-radius": "4px !important",
+        },
+        # Cell focus/selection styling - use green accent
+        ".ag-cell-focus": {
+            "border": f"1px solid {COLORS['green']} !important",
+            "outline": "none !important",
+        },
+        ".ag-cell:focus": {
+            "border": f"1px solid {COLORS['green']} !important",
+            "outline": "none !important",
+        },
+        # Sorted column header styling
+        ".ag-header-cell-sorted-asc, .ag-header-cell-sorted-desc": {
+            "color": f"{COLORS['green']} !important",
+        },
+        ".ag-header-cell-sorted-asc .ag-header-cell-label, .ag-header-cell-sorted-desc .ag-header-cell-label": {
+            "color": f"{COLORS['green']} !important",
+        },
+        # Sort icon styling
+        ".ag-sort-ascending-icon, .ag-sort-descending-icon": {
+            "color": f"{COLORS['green']} !important",
+        },
+        # Highlight cells in the sorted column with green tint
+        ".sorted-col-highlight": {
+            "background-color": "rgba(15,230,180,0.12) !important",
+        },
+        # Logo column header styling
+        ".ag-header-cell[col-id='Logo']": {
+            "border-right": "none !important",
+        },
+    }
+
+
+def get_phases_table_css() -> dict:
+    """CSS for phases table (adds header styling and phase banding)."""
+    base = get_base_aggrid_css()
+    phases_specific = {
+        # Header styling
+        ".ag-header": {
+            "background-color": f"{HEADER_BG} !important",
+            "border-bottom": "1px solid rgba(255,255,255,0.1) !important",
+        },
+        ".ag-header-cell": {
+            "background-color": f"{HEADER_BG} !important",
+            "color": "rgba(255,255,255,0.6) !important",
+            "font-weight": "600 !important",
+            "font-size": "0.75rem !important",
+            "text-transform": "uppercase !important",
+            "letter-spacing": "0.04em !important",
+        },
+        ".ag-header-cell-label": {
+            "justify-content": "center !important",
+        },
+        # Group header (phase names) styling - top tier of two-tier headers
+        ".ag-header-group-cell": {
+            "color": "rgba(255,255,255,0.9) !important",
+            "font-weight": "700 !important",
+            "font-size": "0.9rem !important",
+            "border-bottom": "1px solid rgba(255,255,255,0.15) !important",
+            "border-right": "1px solid rgba(255,255,255,0.08) !important",
+            "text-align": "center !important",
+        },
+        ".ag-header-group-cell-label": {
+            "width": "100% !important",
+            "display": "flex !important",
+            "justify-content": "center !important",
+            "text-align": "center !important",
+            "padding": "0 !important",
+        },
+        ".ag-header-group-text": {
+            "text-align": "center !important",
+        },
+        # Phase banding for group headers
+        ".ag-header-group-cell.phase-band-1": {
+            "background-color": "#0E374B !important",
+        },
+        ".ag-header-group-cell.phase-band-2": {
+            "background-color": "#0A2D3D !important",
+        },
+    }
+    return {**base, **phases_specific}
+
+
+def get_team_styles_table_css() -> dict:
+    """CSS for team styles table (adds whitespace fixes, style headers)."""
+    base = get_base_aggrid_css()
+    styles_specific = {
+        # Fix whitespace: Make header empty space match body background
+        ".ag-header": {
+            "background-color": f"{COLORS['dark1']} !important",
+            "border-bottom": "1px solid rgba(255,255,255,0.1) !important",
+        },
+        ".ag-header-viewport": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        ".ag-header-container": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        ".ag-header-row": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        # Second tier headers - match phases tab style
+        ".ag-header-cell": {
+            "background-color": f"{HEADER_BG} !important",
+            "color": "rgba(255,255,255,0.6) !important",
+            "font-weight": "600 !important",
+            "font-size": "0.75rem !important",
+            "text-transform": "uppercase !important",
+            "letter-spacing": "0.04em !important",
+        },
+        ".ag-header-cell-label": {
+            "justify-content": "center !important",
+        },
+        # Style header text wrapping
+        ".style-header-wrap .ag-header-cell-text": {
+            "white-space": "normal !important",
+            "text-align": "center !important",
+            "line-height": "1.2 !important",
+        },
+        # Season Style header - spans full height
+        ".team-style-header": {
+            "background-color": "#0A2D3D !important",
+            "display": "flex !important",
+            "align-items": "center !important",
+            "justify-content": "center !important",
+            "color": "rgba(255,255,255,0.9) !important",
+            "font-weight": "700 !important",
+            "font-size": "0.9rem !important",
+            "text-transform": "none !important",
+        },
+        ".team-style-header .ag-header-cell-text": {
+            "white-space": "normal !important",
+            "text-align": "center !important",
+            "line-height": "1.2 !important",
+        },
+        # Group header (Match Styles, Season Style) - first tier
+        ".ag-header-group-cell": {
+            "color": "rgba(255,255,255,0.9) !important",
+            "font-weight": "700 !important",
+            "font-size": "0.9rem !important",
+            "border-bottom": "1px solid rgba(255,255,255,0.15) !important",
+            "text-align": "center !important",
+        },
+        ".ag-header-group-cell-label": {
+            "justify-content": "center !important",
+            "width": "100% !important",
+            "text-align": "center !important",
+        },
+        ".ag-header-group-text": {
+            "text-align": "center !important",
+            "width": "100% !important",
+        },
+        # Team Style column - text wrapping with line breaks preserved
+        ".team-style-cell": {
+            "white-space": "pre-line !important",
+            "line-height": "1.3 !important",
+            "padding": "6px 10px !important",
+            "justify-content": "flex-start !important",
+        },
+        # Ensure all body/viewport containers have consistent background
+        ".ag-root": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        ".ag-center-cols-viewport": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        ".ag-center-cols-container": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        ".ag-center-cols-clipper": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        ".ag-body-horizontal-scroll-viewport": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+    }
+    return {**base, **styles_specific}
+
+
+# =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
+
+
+def filter_by_conference(df: pd.DataFrame, conference: str) -> pd.DataFrame:
+    """Filter DataFrame by MLS conference."""
+    if conference == "All MLS":
+        return df.copy()
+    conference_teams = MLS_CONFERENCES.get(conference, [])
+    return df[df["team_name"].isin(conference_teams)].copy()
+
+
+def render_csv_download(data: pd.DataFrame, filename: str) -> None:
+    """Render a CSV download link for the given data."""
+    if data.empty:
+        return
+    export_cols = [c for c in data.columns if c != "Logo" and not c.startswith("_")]
+    csv_data = data[export_cols].to_csv(index=False)
+    csv_b64 = base64.b64encode(csv_data.encode()).decode()
+    st.markdown(
+        f'<div style="text-align: right; margin-top: -1.5rem;">'
+        f'<a href="data:text/csv;base64,{csv_b64}" download="{filename}" '
+        f'style="color: rgba(255,255,255,0.4); font-size: 0.75rem; text-decoration: none;">'
+        f'Download CSV</a></div>',
+        unsafe_allow_html=True,
+    )
 
 
 # =============================================================================
@@ -291,6 +698,46 @@ def create_wide_table(
     return result, columns_config
 
 
+def get_dominant_style(row: pd.Series) -> str:
+    """
+    Get the dominant style(s) for a team based on highest percentage value.
+
+    If there's a tie, returns both styles separated by a line break.
+    """
+    style_values = {col: row[col] for col in STYLE_COLUMNS}
+    max_val = max(style_values.values())
+    dominant = [col for col, val in style_values.items() if val == max_val]
+    return "\n".join(dominant)
+
+
+def prepare_team_styles_data(df: pd.DataFrame, show_percentiles: bool = False) -> pd.DataFrame:
+    """
+    Prepare team styles data for display with logos.
+
+    Args:
+        df: Source data with team_name and style columns
+        show_percentiles: If True, convert values to league percentiles (0-100)
+
+    Returns:
+        DataFrame with Logo, Team, Team Style, and style percentage columns
+    """
+    result = pd.DataFrame()
+    result["Logo"] = df["team_name"].apply(get_team_logo_base64)
+    result["Team"] = df["team_name"]
+
+    # Calculate dominant style before any percentile transformation
+    result["Team Style"] = df.apply(get_dominant_style, axis=1)
+
+    for col in STYLE_COLUMNS:
+        if show_percentiles:
+            # Calculate percentile rank within the current dataset (0-100)
+            result[col] = df[col].rank(pct=True).mul(100).round(0).astype(int)
+        else:
+            result[col] = df[col].round(1)
+
+    return result.sort_values("Team").reset_index(drop=True)
+
+
 # =============================================================================
 # UI COMPONENTS
 # =============================================================================
@@ -410,61 +857,11 @@ def render_data_table(
         st.info("No data matches the current filters.")
         return
 
-    # Custom cell renderer for logo images
-    logo_renderer = JsCode("""
-        class LogoRenderer {
-            init(params) {
-                this.eGui = document.createElement('div');
-                this.eGui.style.display = 'flex';
-                this.eGui.style.alignItems = 'center';
-                this.eGui.style.justifyContent = 'center';
-                this.eGui.style.height = '100%';
-                if (params.value) {
-                    const img = document.createElement('img');
-                    img.src = params.value;
-                    img.style.width = '24px';
-                    img.style.height = '24px';
-                    img.style.objectFit = 'contain';
-                    this.eGui.appendChild(img);
-                }
-            }
-            getGui() { return this.eGui; }
-            refresh() { return false; }
-        }
-    """)
-
     # Build columnDefs manually to support two-tier grouped headers
-    column_defs = []
-
-    # Logo column (ungrouped, pinned left)
-    column_defs.append({
-        "field": "Logo",
-        "headerName": "",
-        "pinned": "left",
-        "width": 50,
-        "maxWidth": 50,
-        "minWidth": 50,
-        "cellRenderer": logo_renderer,
-        "sortable": False,
-        "filter": False,
-        "resizable": False,
-        "suppressMenu": True,
-    })
-
-    # Team column - pinned on desktop (>768px), scrolls on mobile
-    # Pinning is set dynamically via onGridReady based on screen width
-    column_defs.append({
-        "field": "Team",
-        "headerName": "",  # No header text - just shows team names in cells
-        "width": 200,
-        "minWidth": 180,
-        "sortable": True,
-        "filter": False,  # No filter icon in header
-        "suppressMenu": True,  # Suppress column menu entirely
-        "cellClass": "team-divider",  # Divider line between Team and first phase
-        "headerClass": "team-divider-header",
-        "pinned": "left",  # Default to pinned, JS will unpin on mobile
-    })
+    column_defs = [
+        create_logo_column_def(),
+        create_team_column_def("team-divider"),
+    ]
 
     # Group phase columns by phase name for two-tier headers
     from collections import OrderedDict
@@ -558,17 +955,7 @@ def render_data_table(
     """)
 
     # JavaScript to unpin Team column on mobile (<768px)
-    on_grid_ready = JsCode("""
-        function(params) {
-            const api = params.api;
-            const isMobile = window.innerWidth < 768;
-            if (isMobile) {
-                api.applyColumnState({
-                    state: [{ colId: 'Team', pinned: null }]
-                });
-            }
-        }
-    """)
+    on_grid_ready = get_mobile_unpin_callback(size_to_fit=False)
 
     # Build grid options with manual columnDefs
     grid_options = {
@@ -589,167 +976,147 @@ def render_data_table(
         "suppressRowClickSelection": True,
     }
 
-    # Custom CSS for dark theme matching the app
-    # Dark band color used for header background
-    header_bg = "#0A2D3D"  # Matches phase-band-2 (darker shade)
+    # Custom CSS for dark theme
+    custom_css = get_phases_table_css()
 
-    custom_css = {
-        # Header styling - use dark band color
-        ".ag-header": {
-            "background-color": f"{header_bg} !important",
-            "border-bottom": "1px solid rgba(255,255,255,0.1) !important",
+    AgGrid(
+        data,
+        gridOptions=grid_options,
+        height=560,
+        allow_unsafe_jscode=True,
+        custom_css=custom_css,
+        theme="balham-dark",
+    )
+
+
+def render_team_styles_table(data: pd.DataFrame, show_percentiles: bool = False) -> None:
+    """Render the team styles table with AgGrid.
+
+    Args:
+        data: DataFrame with Logo, Team, and style percentage columns
+        show_percentiles: If True, format values as integers (percentile rank)
+    """
+    if data.empty:
+        st.info("No data matches the current filters.")
+        return
+
+    # Build columnDefs manually to support two-tier grouped headers
+    column_defs = [
+        create_logo_column_def(),
+        create_team_column_def("team-cell team-divider"),
+    ]
+
+    # Season Style column - wrapped in a group for consistent two-tier header structure
+    column_defs.append({
+        "headerName": "Season Style",
+        "headerClass": "team-style-header",
+        "children": [{
+            "field": "Team Style",
+            "headerName": "",
+            "width": 170,
+            "minWidth": 150,
+            "sortable": True,
+            "filter": False,
+            "suppressMenu": True,
+            "cellClass": "team-style-cell team-divider",
+            "headerClass": "team-style-header team-divider-header",
+            "wrapText": True,
+            "autoHeight": True,
+        }],
+    })
+
+    # Formatter based on mode
+    if show_percentiles:
+        # Integer for percentiles
+        value_formatter = JsCode(
+            "function(params) { return params.value != null ? Math.round(params.value).toString() : '-'; }"
+        )
+    else:
+        # Percentage rounded to whole number
+        value_formatter = JsCode(
+            "function(params) { return params.value != null ? Math.round(params.value) + '%' : '-'; }"
+        )
+
+    # cellClassRules to highlight sorted column (works with virtualization)
+    sorted_highlight_rule = JsCode("""
+        function(params) {
+            if (!params.api) return false;
+            const sortedCols = params.api.getColumnState().filter(c => c.sort);
+            if (sortedCols.length === 0) return false;
+            return sortedCols[0].colId === params.colDef.field;
+        }
+    """)
+
+    # Build style column children for the "Match-Level Styles" group
+    style_children = []
+    for i, col in enumerate(STYLE_COLUMNS):
+        is_last = (i == len(STYLE_COLUMNS) - 1)
+        # Alternate banding between columns
+        band_class = "phase-band-1" if i % 2 == 0 else "phase-band-2"
+        base_class = "numeric-cell phase-divider" if is_last else "numeric-cell"
+        col_def = {
+            "field": col,
+            "headerName": col,
+            "width": 132,
+            "minWidth": 110,
+            "valueFormatter": value_formatter,
+            "type": ["numericColumn"],
+            "cellClass": base_class,
+            "cellClassRules": {
+                "sorted-col-highlight": sorted_highlight_rule,
+            },
+            "sortable": True,
+            "filter": False,
+            "headerClass": f"{band_class} style-header-wrap" + (" phase-divider-header" if is_last else ""),
+            "wrapHeaderText": True,
+            "autoHeaderHeight": True,
+        }
+        # Last column fills remaining space to eliminate whitespace
+        if is_last:
+            col_def["flex"] = 1
+        style_children.append(col_def)
+
+    # Add "Match Styles" column group
+    column_defs.append({
+        "headerName": "Match Styles",
+        "headerClass": "phase-band-1",
+        "children": style_children,
+    })
+
+    # Refresh cells on sort change to re-evaluate cellClassRules
+    on_sort_changed = JsCode("""
+        function(params) {
+            params.api.refreshCells({ force: true });
+        }
+    """)
+
+    # JavaScript to unpin Team column on mobile (<768px) and size columns to fit
+    on_grid_ready = get_mobile_unpin_callback(size_to_fit=True)
+
+    # Build grid options
+    grid_options = {
+        "columnDefs": column_defs,
+        "defaultColDef": {
+            "sortable": True,
+            "resizable": True,
+            "wrapHeaderText": True,
+            "autoHeaderHeight": True,
         },
-        ".ag-header-cell": {
-            "background-color": f"{header_bg} !important",
-            "color": "rgba(255,255,255,0.6) !important",  # More muted for metric names
-            "font-weight": "600 !important",
-            "font-size": "0.75rem !important",  # Smaller for secondary headers
-            "text-transform": "uppercase !important",
-            "letter-spacing": "0.04em !important",
-        },
-        ".ag-header-cell-label": {
-            "justify-content": "center !important",
-        },
-        # Logo column header styling
-        ".ag-header-cell[col-id='Logo']": {
-            "border-right": "none !important",
-        },
-        # Group header (phase names) styling - top tier of two-tier headers
-        ".ag-header-group-cell": {
-            "color": "rgba(255,255,255,0.9) !important",
-            "font-weight": "700 !important",
-            "font-size": "0.9rem !important",
-            "border-bottom": "1px solid rgba(255,255,255,0.15) !important",
-            "border-right": "1px solid rgba(255,255,255,0.08) !important",  # Subtle vertical separator
-            "text-align": "center !important",  # Center the text
-        },
-        ".ag-header-group-cell-label": {
-            "width": "100% !important",
-            "display": "flex !important",
-            "justify-content": "center !important",
-            "text-align": "center !important",
-            "padding": "0 !important",
-        },
-        # Target the text span inside the group header label
-        ".ag-header-group-text": {
-            "text-align": "center !important",
-        },
-        # Phase banding - alternating background colors for both header rows
-        # Apply to group headers (first row - phase names)
-        ".ag-header-group-cell.phase-band-1": {
-            "background-color": "#0E374B !important",  # COLORS['dark2'] - lighter band
-        },
-        ".ag-header-group-cell.phase-band-2": {
-            "background-color": "#0A2D3D !important",  # Darker band (matches header_bg)
-        },
-        # Apply to child headers (second row - COUNT, WON, SHARE)
-        ".ag-header-cell.phase-band-1": {
-            "background-color": "#0E374B !important",  # COLORS['dark2'] - lighter band
-        },
-        ".ag-header-cell.phase-band-2": {
-            "background-color": "#0A2D3D !important",  # Darker band (matches header_bg)
-        },
-        # Divider line between Team column and first phase
-        ".team-divider": {
-            "border-right": "1px solid rgba(255,255,255,0.15) !important",
-        },
-        ".team-divider-header": {
-            "border-right": "1px solid rgba(255,255,255,0.15) !important",
-        },
-        # Divider line between phase clusters (after Share column)
-        ".phase-divider": {
-            "border-right": "1px solid rgba(255,255,255,0.15) !important",
-        },
-        ".phase-divider-header": {
-            "border-right": "1px solid rgba(255,255,255,0.15) !important",
-        },
-        # Row styling
-        ".ag-row": {
-            "background-color": f"{COLORS['dark1']} !important",
-            "border-bottom": "1px solid rgba(255,255,255,0.05) !important",
-        },
-        ".ag-row-odd": {
-            "background-color": "rgba(14,55,75,0.3) !important",
-        },
-        ".ag-row:hover": {
-            "background-color": "rgba(15,230,180,0.08) !important",
-        },
-        # Cell styling - base styles
-        ".ag-cell": {
-            "color": "rgba(255,255,255,0.9) !important",
-            "display": "flex !important",
-            "align-items": "center !important",
-            "font-size": "0.875rem !important",
-        },
-        # Numeric cells right-aligned
-        ".numeric-cell": {
-            "justify-content": "flex-end !important",
-            "padding-right": "6px !important",
-        },
-        # Pinned columns styling (logo column only - no border)
-        ".ag-pinned-left-header": {
-            "background-color": f"{header_bg} !important",  # Match header background
-            # No border - seamless transition to scrollable area
-        },
-        ".ag-pinned-left-cols-container .ag-row": {
-            "background-color": f"{COLORS['dark1']} !important",
-        },
-        ".ag-pinned-left-cols-container .ag-row-odd": {
-            "background-color": "rgba(14,55,75,0.3) !important",
-        },
-        ".ag-pinned-left-cols-container": {
-            # No border - Team column now scrolls with data
-        },
-        # Team column left-align (now in main scrollable area, not pinned)
-        ".ag-cell[col-id='Team']": {
-            "justify-content": "flex-start !important",
-            "padding-left": "12px !important",
-        },
-        # Root/wrapper styling
-        ".ag-root-wrapper": {
-            "background-color": f"{COLORS['dark1']} !important",
-            "border": "none !important",
-            "border-radius": "0.5rem !important",
-        },
-        ".ag-body-viewport": {
-            "background-color": f"{COLORS['dark1']} !important",
-        },
-        # Scrollbar styling
-        ".ag-body-horizontal-scroll-viewport::-webkit-scrollbar": {
-            "height": "8px !important",
-        },
-        ".ag-body-horizontal-scroll-viewport::-webkit-scrollbar-track": {
-            "background": f"{COLORS['dark']} !important",
-        },
-        ".ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb": {
-            "background": "rgba(255,255,255,0.2) !important",
-            "border-radius": "4px !important",
-        },
-        # Cell focus/selection styling - use green accent
-        ".ag-cell-focus": {
-            "border": f"1px solid {COLORS['green']} !important",
-            "outline": "none !important",
-        },
-        ".ag-cell:focus": {
-            "border": f"1px solid {COLORS['green']} !important",
-            "outline": "none !important",
-        },
-        # Sorted column header styling
-        ".ag-header-cell-sorted-asc, .ag-header-cell-sorted-desc": {
-            "color": f"{COLORS['green']} !important",
-        },
-        ".ag-header-cell-sorted-asc .ag-header-cell-label, .ag-header-cell-sorted-desc .ag-header-cell-label": {
-            "color": f"{COLORS['green']} !important",
-        },
-        # Sort icon styling
-        ".ag-sort-ascending-icon, .ag-sort-descending-icon": {
-            "color": f"{COLORS['green']} !important",
-        },
-        # Highlight cells in the sorted column with green tint
-        ".sorted-col-highlight": {
-            "background-color": "rgba(15,230,180,0.12) !important",
-        },
+        "onSortChanged": on_sort_changed,
+        "onFirstDataRendered": on_sort_changed,
+        "onGridReady": on_grid_ready,
+        "domLayout": "normal",
+        "rowHeight": 36,
+        "headerHeight": 50,
+        "groupHeaderHeight": 32,
+        "suppressMovableColumns": True,
+        "enableRangeSelection": False,
+        "suppressRowClickSelection": True,
+        "suppressColumnVirtualisation": True,
     }
+
+    # Custom CSS for dark theme
+    custom_css = get_team_styles_table_css()
 
     AgGrid(
         data,
@@ -1036,10 +1403,7 @@ def render_phases_tab() -> None:
         conference_choice, category_choice = render_filters()
 
         # Apply filters
-        filtered_df = df.copy()
-        if conference_choice != "All MLS":
-            conference_teams = MLS_CONFERENCES.get(conference_choice, [])
-            filtered_df = filtered_df[filtered_df["team_name"].isin(conference_teams)]
+        filtered_df = filter_by_conference(df, conference_choice)
 
         phases_to_show = PHASE_CATEGORIES[category_choice]
         show_percentiles = st.session_state.get("view_mode", "Values") == "Percentiles"
@@ -1051,20 +1415,48 @@ def render_phases_tab() -> None:
 
         render_data_table(table_data, columns_config)
 
-        # Download link below the table - small right-aligned text
-        if not table_data.empty:
-            # Only export Team + phase metric columns (exclude Logo and any auto-generated columns)
-            export_cols = [c for c in table_data.columns if c != "Logo" and not c.startswith("_")]
-            export_df = table_data[export_cols]
-            csv_data = export_df.to_csv(index=False)
-            csv_b64 = base64.b64encode(csv_data.encode()).decode()
-            st.markdown(
-                f'<div style="text-align: right; margin-top: -1.5rem;">'
-                f'<a href="data:text/csv;base64,{csv_b64}" download="futi_phases.csv" '
-                f'style="color: rgba(255,255,255,0.4); font-size: 0.75rem; text-decoration: none;">'
-                f'Download CSV</a></div>',
-                unsafe_allow_html=True,
+        render_csv_download(table_data, "futi_phases.csv")
+
+
+def render_team_styles_tab() -> None:
+    """Render the Team Styles tab content."""
+    data_path = Path(__file__).resolve().parent / "team_styles.csv"
+    if not data_path.exists():
+        st.error("Missing team_styles.csv in the app directory")
+        st.stop()
+
+    df = load_data(str(data_path), get_file_mtime(data_path))
+
+    with st.container(border=True):
+        # Conference filter and Values/Percentiles toggle
+        conference_options = ["All MLS", "Eastern Conference", "Western Conference"]
+
+        col_conference, col_toggle = st.columns([3, 3], vertical_alignment="center")
+
+        with col_conference:
+            conference_choice = st.selectbox(
+                "Conference",
+                conference_options,
+                index=0,
+                label_visibility="collapsed",
+                key="styles_conference",
             )
+
+        with col_toggle:
+            render_toggle(["Values", "Percentiles"], key="styles_view_mode", default="Values")
+
+        # Filter by conference
+        filtered_df = filter_by_conference(df, conference_choice)
+
+        # Prepare and display table
+        show_percentiles = st.session_state.get("styles_view_mode", "Values") == "Percentiles"
+        table_data = prepare_team_styles_data(filtered_df, show_percentiles)
+
+        st.markdown("<div style='height: 6px;'></div>", unsafe_allow_html=True)
+
+        render_team_styles_table(table_data, show_percentiles)
+
+        render_csv_download(table_data, "futi_team_styles.csv")
 
 
 # def render_team_stats_tab() -> None:
@@ -1093,22 +1485,14 @@ def main() -> None:
     render_header()
     st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
-    # Main navigation tabs (Team Stats and Player Stats commented out for now)
-    # tab_phases, tab_team_stats, tab_player_stats = st.tabs([
-    #     "Phases",
-    #     "Team Stats",
-    #     "Player Stats",
-    # ])
-    tab_phases, = st.tabs(["Phases"])
+    # Main navigation tabs
+    tab_phases, tab_styles = st.tabs(["Phases", "Team Styles"])
 
     with tab_phases:
         render_phases_tab()
 
-    # with tab_team_stats:
-    #     render_team_stats_tab()
-
-    # with tab_player_stats:
-    #     render_player_stats_tab()
+    with tab_styles:
+        render_team_styles_tab()
 
 
 if __name__ == "__main__":
