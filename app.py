@@ -101,6 +101,26 @@ STYLE_COLUMNS = [
 ]
 
 # =============================================================================
+# TEAM TENDENCIES DEFINITIONS
+# =============================================================================
+
+TENDENCIES_COLUMNS = [
+    "building_patient",
+    "progression_patient",
+    "chaos",
+    "highpress",
+    "counterpress",
+]
+
+TENDENCIES_DISPLAY_NAMES = {
+    "building_patient": "Patient Building",
+    "progression_patient": "Patient Progression",
+    "chaos": "Chaos",
+    "highpress": "High Press",
+    "counterpress": "Counterpress",
+}
+
+# =============================================================================
 # METRIC DEFINITIONS
 #
 # The app shows three metrics per phase. These map CSV column names to display names.
@@ -311,9 +331,11 @@ def get_base_aggrid_css() -> dict:
         ".ag-header-cell.phase-band-2": {
             "background-color": "#0A2D3D !important",
         },
-        # Pinned left header - match body row color
+        # Pinned left header - match body row color with right border
         ".ag-pinned-left-header": {
             "background-color": f"{COLORS['dark1']} !important",
+            "border-right": "1px solid rgba(255,255,255,0.15) !important",
+            "z-index": "10 !important",
         },
         ".ag-pinned-left-header .ag-header-row": {
             "background-color": f"{COLORS['dark1']} !important",
@@ -326,6 +348,11 @@ def get_base_aggrid_css() -> dict:
         },
         ".ag-header-cell[col-id='Team']": {
             "background-color": f"{COLORS['dark1']} !important",
+            "border-right": "1px solid rgba(255,255,255,0.15) !important",
+        },
+        ".ag-pinned-left-cols-container": {
+            "border-right": "1px solid rgba(255,255,255,0.15) !important",
+            "z-index": "10 !important",
         },
         ".ag-pinned-left-cols-container .ag-row": {
             "background-color": f"{COLORS['dark1']} !important",
@@ -333,10 +360,11 @@ def get_base_aggrid_css() -> dict:
         ".ag-pinned-left-cols-container .ag-row-odd": {
             "background-color": "rgba(14,55,75,0.3) !important",
         },
-        # Team column left-align
+        # Team column left-align and divider (col-id selector is more robust than class)
         ".ag-cell[col-id='Team']": {
             "justify-content": "flex-start !important",
             "padding-left": "12px !important",
+            "border-right": "1px solid rgba(255,255,255,0.15) !important",
         },
         # Root/wrapper styling
         ".ag-root-wrapper": {
@@ -382,8 +410,11 @@ def get_base_aggrid_css() -> dict:
         ".sorted-col-highlight": {
             "background-color": "rgba(15,230,180,0.12) !important",
         },
-        # Logo column header styling
+        # Logo column styling - no border between Logo and Team
         ".ag-header-cell[col-id='Logo']": {
+            "border-right": "none !important",
+        },
+        ".ag-cell[col-id='Logo']": {
             "border-right": "none !important",
         },
     }
@@ -738,6 +769,32 @@ def prepare_team_styles_data(df: pd.DataFrame, show_percentiles: bool = False) -
     return result.sort_values("Team").reset_index(drop=True)
 
 
+def prepare_team_tendencies_data(df: pd.DataFrame, show_percentiles: bool = False) -> pd.DataFrame:
+    """
+    Prepare team tendencies data for display with logos.
+
+    Args:
+        df: Source data with team_name and tendencies columns
+        show_percentiles: If True, convert values to league percentiles (0-100)
+
+    Returns:
+        DataFrame with Logo, Team, and tendencies columns
+    """
+    result = pd.DataFrame()
+    result["Logo"] = df["team_name"].apply(get_team_logo_base64)
+    result["Team"] = df["team_name"]
+
+    for col in TENDENCIES_COLUMNS:
+        display_name = TENDENCIES_DISPLAY_NAMES[col]
+        if show_percentiles:
+            # Calculate percentile rank within the current dataset (0-100)
+            result[display_name] = df[col].rank(pct=True).mul(100).round(0).astype(int)
+        else:
+            result[display_name] = df[col].round(0).astype(int)
+
+    return result.sort_values("Team").reset_index(drop=True)
+
+
 # =============================================================================
 # UI COMPONENTS
 # =============================================================================
@@ -1057,8 +1114,8 @@ def render_team_styles_table(data: pd.DataFrame, show_percentiles: bool = False)
         col_def = {
             "field": col,
             "headerName": col,
-            "width": 132,
-            "minWidth": 110,
+            "minWidth": 100,
+            "flex": 1,  # All columns get equal flex width
             "valueFormatter": value_formatter,
             "type": ["numericColumn"],
             "cellClass": base_class,
@@ -1071,9 +1128,6 @@ def render_team_styles_table(data: pd.DataFrame, show_percentiles: bool = False)
             "wrapHeaderText": True,
             "autoHeaderHeight": True,
         }
-        # Last column fills remaining space to eliminate whitespace
-        if is_last:
-            col_def["flex"] = 1
         style_children.append(col_def)
 
     # Add "Match Styles" column group
@@ -1081,6 +1135,117 @@ def render_team_styles_table(data: pd.DataFrame, show_percentiles: bool = False)
         "headerName": "Match Styles",
         "headerClass": "phase-band-1",
         "children": style_children,
+    })
+
+    # Refresh cells on sort change to re-evaluate cellClassRules
+    on_sort_changed = JsCode("""
+        function(params) {
+            params.api.refreshCells({ force: true });
+        }
+    """)
+
+    # JavaScript to unpin Team column on mobile (<768px) and size columns to fit
+    on_grid_ready = get_mobile_unpin_callback(size_to_fit=True)
+
+    # Build grid options
+    grid_options = {
+        "columnDefs": column_defs,
+        "defaultColDef": {
+            "sortable": True,
+            "resizable": True,
+            "wrapHeaderText": True,
+            "autoHeaderHeight": True,
+        },
+        "onSortChanged": on_sort_changed,
+        "onFirstDataRendered": on_sort_changed,
+        "onGridReady": on_grid_ready,
+        "domLayout": "normal",
+        "rowHeight": 36,
+        "headerHeight": 50,
+        "groupHeaderHeight": 32,
+        "suppressMovableColumns": True,
+        "enableRangeSelection": False,
+        "suppressRowClickSelection": True,
+        "suppressColumnVirtualisation": True,
+    }
+
+    # Custom CSS for dark theme
+    custom_css = get_team_styles_table_css()
+
+    AgGrid(
+        data,
+        gridOptions=grid_options,
+        height=560,
+        allow_unsafe_jscode=True,
+        custom_css=custom_css,
+        theme="balham-dark",
+    )
+
+
+def render_team_tendencies_table(data: pd.DataFrame, show_percentiles: bool = False) -> None:
+    """Render the team tendencies table with AgGrid.
+
+    Args:
+        data: DataFrame with Logo, Team, and tendencies columns
+        show_percentiles: If True, format values as integers (percentile rank)
+    """
+    if data.empty:
+        st.info("No data matches the current filters.")
+        return
+
+    # Build columnDefs manually
+    column_defs = [
+        create_logo_column_def(),
+        create_team_column_def("team-cell team-divider"),
+    ]
+
+    # Formatter - always integers for tendencies
+    value_formatter = JsCode(
+        "function(params) { return params.value != null ? Math.round(params.value).toString() : '-'; }"
+    )
+
+    # cellClassRules to highlight sorted column
+    sorted_highlight_rule = JsCode("""
+        function(params) {
+            if (!params.api) return false;
+            const sortedCols = params.api.getColumnState().filter(c => c.sort);
+            if (sortedCols.length === 0) return false;
+            return sortedCols[0].colId === params.colDef.field;
+        }
+    """)
+
+    # Build tendencies column children for the "Tendencies" group
+    tendencies_children = []
+    display_names = list(TENDENCIES_DISPLAY_NAMES.values())
+    for i, col in enumerate(display_names):
+        is_last = (i == len(display_names) - 1)
+        # Alternate banding between columns
+        band_class = "phase-band-1" if i % 2 == 0 else "phase-band-2"
+        base_class = "numeric-cell phase-divider" if is_last else "numeric-cell"
+        col_def = {
+            "field": col,
+            "headerName": col,
+            "minWidth": 100,
+            "flex": 1,  # All columns get equal flex width
+            "valueFormatter": value_formatter,
+            "type": ["numericColumn"],
+            "cellClass": base_class,
+            "cellClassRules": {
+                "sorted-col-highlight": sorted_highlight_rule,
+            },
+            "sortable": True,
+            "filter": False,
+            "headerClass": f"{band_class} style-header-wrap" + (" phase-divider-header" if is_last else ""),
+            "wrapHeaderText": True,
+            "autoHeaderHeight": True,
+        }
+        tendencies_children.append(col_def)
+
+    # Add "Tendencies" column group
+    column_defs.append({
+        "headerName": "Tendencies",
+        "headerClass": "phase-band-1",
+        "children": tendencies_children,
     })
 
     # Refresh cells on sort change to re-evaluate cellClassRules
@@ -1348,22 +1513,25 @@ def inject_styles() -> None:
         .stTabs [data-baseweb="tab"] {{
             height: 40px;
             padding: 0 20px;
-            background: transparent;
-            border: none;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-bottom: none;
             border-radius: 8px 8px 0 0;
-            color: rgba(255,255,255,0.6);
+            color: rgba(255,255,255,0.5);
             font-weight: 500;
             font-size: 0.95rem;
         }}
 
         .stTabs [data-baseweb="tab"]:hover {{
-            color: rgba(255,255,255,0.85);
-            background: rgba(255,255,255,0.05);
+            color: rgba(255,255,255,0.8);
+            background: rgba(255,255,255,0.06);
+            border-color: rgba(255,255,255,0.12);
         }}
 
         .stTabs [aria-selected="true"] {{
             background: {COLORS['dark2']} !important;
             color: {COLORS['green']} !important;
+            border: 1px solid rgba(255,255,255,0.15) !important;
             border-bottom: 2px solid {COLORS['green']} !important;
         }}
 
@@ -1459,6 +1627,47 @@ def render_team_styles_tab() -> None:
         render_csv_download(table_data, "futi_team_styles.csv")
 
 
+def render_team_tendencies_tab() -> None:
+    """Render the Team Tendencies tab content."""
+    data_path = Path(__file__).resolve().parent / "team_styles.csv"
+    if not data_path.exists():
+        st.error("Missing team_styles.csv in the app directory")
+        st.stop()
+
+    df = load_data(str(data_path), get_file_mtime(data_path))
+
+    with st.container(border=True):
+        # Conference filter and Values/Percentiles toggle
+        conference_options = ["All MLS", "Eastern Conference", "Western Conference"]
+
+        col_conference, col_toggle = st.columns([3, 3], vertical_alignment="center")
+
+        with col_conference:
+            conference_choice = st.selectbox(
+                "Conference",
+                conference_options,
+                index=0,
+                label_visibility="collapsed",
+                key="tendencies_conference",
+            )
+
+        with col_toggle:
+            render_toggle(["Values", "Percentiles"], key="tendencies_view_mode", default="Values")
+
+        # Filter by conference
+        filtered_df = filter_by_conference(df, conference_choice)
+
+        # Prepare and display table
+        show_percentiles = st.session_state.get("tendencies_view_mode", "Values") == "Percentiles"
+        table_data = prepare_team_tendencies_data(filtered_df, show_percentiles)
+
+        st.markdown("<div style='height: 6px;'></div>", unsafe_allow_html=True)
+
+        render_team_tendencies_table(table_data, show_percentiles)
+
+        render_csv_download(table_data, "futi_team_tendencies.csv")
+
+
 # def render_team_stats_tab() -> None:
 #     """Render the Team Stats tab content (placeholder)."""
 #     with st.container(border=True):
@@ -1486,13 +1695,16 @@ def main() -> None:
     st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
     # Main navigation tabs
-    tab_phases, tab_styles = st.tabs(["Phases", "Team Styles"])
+    tab_phases, tab_styles, tab_tendencies = st.tabs(["Phases", "Team Styles", "Team Tendencies"])
 
     with tab_phases:
         render_phases_tab()
 
     with tab_styles:
         render_team_styles_tab()
+
+    with tab_tendencies:
+        render_team_tendencies_tab()
 
 
 if __name__ == "__main__":
