@@ -1643,10 +1643,20 @@ def render_team_tendencies_tab() -> None:
     df = load_data(str(data_path), get_file_mtime(data_path))
 
     with st.container(border=True):
-        # Conference filter and Values/Percentiles toggle
+        # Season, Conference filter, and Values/Percentiles toggle
+        season_options = sorted(df["season_name"].unique(), reverse=True)
         conference_options = ["All MLS", "Eastern Conference", "Western Conference"]
 
-        col_conference, col_toggle = st.columns([3, 3], vertical_alignment="center")
+        col_season, col_conference, col_toggle = st.columns([2, 3, 3], vertical_alignment="center")
+
+        with col_season:
+            season_choice = st.selectbox(
+                "Season",
+                season_options,
+                index=0,
+                label_visibility="collapsed",
+                key="tendencies_season",
+            )
 
         with col_conference:
             conference_choice = st.selectbox(
@@ -1660,8 +1670,9 @@ def render_team_tendencies_tab() -> None:
         with col_toggle:
             render_toggle(["Values", "Percentiles"], key="tendencies_view_mode", default="Values")
 
-        # Filter by conference
-        filtered_df = filter_by_conference(df, conference_choice)
+        # Filter by season and conference
+        filtered_df = df[df["season_name"] == season_choice].copy()
+        filtered_df = filter_by_conference(filtered_df, conference_choice)
 
         # Prepare and display table
         show_percentiles = st.session_state.get("tendencies_view_mode", "Values") == "Percentiles"
