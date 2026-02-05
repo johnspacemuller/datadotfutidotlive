@@ -106,18 +106,24 @@ STYLE_COLUMNS = [
 
 TENDENCIES_COLUMNS = [
     "building_patient",
+    "build_wide",
     "progression_patient",
-    "chaos",
-    "highpress",
+    "attack_central",
+    "hightempo",
     "counterpress",
+    "highpress",
+    "chaos",
 ]
 
 TENDENCIES_DISPLAY_NAMES = {
-    "building_patient": "Patient Building",
+    "building_patient": "Patient Buildup",
+    "build_wide": "Central Buildup",
     "progression_patient": "Patient Progression",
-    "chaos": "Chaos",
-    "highpress": "High Press",
+    "attack_central": "Central Attack",
+    "hightempo": "Direct Transitions",
     "counterpress": "Counterpress",
+    "highpress": "High Press",
+    "chaos": "Chaos",
 }
 
 # =============================================================================
@@ -1225,8 +1231,8 @@ def render_team_tendencies_table(data: pd.DataFrame, show_percentiles: bool = Fa
         col_def = {
             "field": col,
             "headerName": col,
+            "width": 122,
             "minWidth": 100,
-            "flex": 1,  # All columns get equal flex width
             "valueFormatter": value_formatter,
             "type": ["numericColumn"],
             "cellClass": base_class,
@@ -1255,8 +1261,8 @@ def render_team_tendencies_table(data: pd.DataFrame, show_percentiles: bool = Fa
         }
     """)
 
-    # JavaScript to unpin Team column on mobile (<768px) and size columns to fit
-    on_grid_ready = get_mobile_unpin_callback(size_to_fit=True)
+    # JavaScript to unpin Team column on mobile (<768px) - no auto-fit
+    on_grid_ready = get_mobile_unpin_callback(size_to_fit=False)
 
     # Build grid options
     grid_options = {
@@ -1629,9 +1635,9 @@ def render_team_styles_tab() -> None:
 
 def render_team_tendencies_tab() -> None:
     """Render the Team Tendencies tab content."""
-    data_path = Path(__file__).resolve().parent / "team_styles.csv"
+    data_path = Path(__file__).resolve().parent / "team_tendencies.csv"
     if not data_path.exists():
-        st.error("Missing team_styles.csv in the app directory")
+        st.error("Missing team_tendencies.csv in the app directory")
         st.stop()
 
     df = load_data(str(data_path), get_file_mtime(data_path))
