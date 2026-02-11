@@ -868,18 +868,18 @@ def render_toggle(options: list[str], key: str, default: str) -> str:
     )
 
 
-def render_filters() -> tuple[str, str]:
+def render_filters() -> tuple[str, str, str]:
     """
     Render the filter controls and return selected values.
 
     Returns:
-        Tuple of (selected_conference, selected_category)
+        Tuple of (selected_conference, selected_category, selected_data_type)
     """
     conference_options = ["All MLS", "Eastern Conference", "Western Conference"]
     category_options = list(PHASE_CATEGORIES.keys())
 
-    col_conference, col_category, col_toggle = st.columns(
-        [3, 4, 3],
+    col_conference, col_category, col_data_type, col_toggle = st.columns(
+        [3, 4, 2, 3],
         vertical_alignment="center",
     )
 
@@ -899,10 +899,14 @@ def render_filters() -> tuple[str, str]:
             label_visibility="collapsed",
         )
 
+    with col_data_type:
+        render_toggle(["For", "Against"], key="phases_data_type", default="For")
+
     with col_toggle:
         render_toggle(["Values", "Percentiles"], key="view_mode", default="Values")
 
-    return conference_choice, category_choice
+    data_type = st.session_state.get("phases_data_type", "For")
+    return conference_choice, category_choice, data_type
 
 
 def render_data_table(
@@ -1562,19 +1566,20 @@ def inject_styles() -> None:
 
 def render_phases_tab() -> None:
     """Render the Phases tab content."""
-    # Load data
-    data_path = Path(__file__).resolve().parent / "phases.csv"
-    if not data_path.exists():
-        st.error("Missing phases.csv in the app directory")
-        st.stop()
-
-    df = load_data(str(data_path), get_file_mtime(data_path))
-    df["team_name"] = df["team_name"].astype(str)
-    df["phase"] = df["phase"].astype(str)
-
     # Single container for filters + table
     with st.container(border=True):
-        conference_choice, category_choice = render_filters()
+        conference_choice, category_choice, data_type = render_filters()
+
+        # Load data based on For/Against toggle
+        filename = "phases_against.csv" if data_type == "Against" else "phases.csv"
+        data_path = Path(__file__).resolve().parent / filename
+        if not data_path.exists():
+            st.error(f"Missing {filename} in the app directory")
+            st.stop()
+        df = load_data(str(data_path), get_file_mtime(data_path))
+
+        df["team_name"] = df["team_name"].astype(str)
+        df["phase"] = df["phase"].astype(str)
 
         # Apply filters
         filtered_df = filter_by_conference(df, conference_choice)
