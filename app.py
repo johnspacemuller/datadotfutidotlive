@@ -101,6 +101,50 @@ STYLE_COLUMNS = [
 ]
 
 # =============================================================================
+# PLAYER RATINGS DEFINITIONS
+# =============================================================================
+
+RATINGS_COLUMNS = [
+    "overall_rating",
+    "shooting_rating",
+    "dribbling_rating",
+    "receptions_rating",
+    "creation_rating",
+    "linkup_rating",
+    "ballwinning_rating",
+]
+
+RATINGS_DISPLAY_NAMES = {
+    "overall_rating": "Overall",
+    "shooting_rating": "Shooting",
+    "dribbling_rating": "Dribbling",
+    "receptions_rating": "Receptions",
+    "creation_rating": "Creation",
+    "linkup_rating": "Linkup",
+    "ballwinning_rating": "Ball Winning",
+}
+
+# Mapping from display name to the _aa (values) column in the CSV
+RATINGS_VALUES_COLUMNS = {
+    "Overall": "vaep_p90_aa",
+    "Shooting": "shooting_aa",
+    "Dribbling": "dribbling_aa",
+    "Receptions": "receptions_aa",
+    "Creation": "creation_aa",
+    "Linkup": "linkup_aa",
+    "Ball Winning": "ballwinning_aa",
+}
+
+ROLE_DISPLAY_NAMES = {
+    "All": "All Positions",
+    "CB": "Center Back",
+    "FB": "Full Back",
+    "MF": "Midfielder",
+    "W": "Winger",
+    "ST": "Striker",
+}
+
+# =============================================================================
 # TEAM TENDENCIES DEFINITIONS
 # =============================================================================
 
@@ -124,6 +168,28 @@ TENDENCIES_DISPLAY_NAMES = {
     "counterpress": "Counterpress",
     "highpress": "High Press",
     "chaos": "Chaos",
+}
+
+# =============================================================================
+# EXPECTED GOALS DEFINITIONS
+# =============================================================================
+
+XG_COLUMNS = ["shots", "sot", "xg", "npxg"]
+XG_AGAINST_COLUMNS = ["shots_against", "sot_against", "xg_against", "npxg_against"]
+XG_SUMMARY_COLUMNS = ["xpoints", "xgd", "npxgd"]
+
+XG_DISPLAY_NAMES = {
+    "shots": "Shots",
+    "sot": "SOT",
+    "xg": "xG",
+    "npxg": "npxG",
+    "shots_against": "Shots",
+    "sot_against": "SOT",
+    "xg_against": "xGA",
+    "npxg_against": "npxGA",
+    "xpoints": "xPts",
+    "xgd": "xGD",
+    "npxgd": "npxGD",
 }
 
 # =============================================================================
@@ -512,9 +578,9 @@ def get_team_styles_table_css() -> dict:
             "text-align": "center !important",
             "line-height": "1.2 !important",
         },
-        # Season Style header - spans full height
+        # Season Style header - dark background matching pinned area
         ".team-style-header": {
-            "background-color": "#0A2D3D !important",
+            "background-color": f"{COLORS['dark1']} !important",
             "display": "flex !important",
             "align-items": "center !important",
             "justify-content": "center !important",
@@ -522,6 +588,15 @@ def get_team_styles_table_css() -> dict:
             "font-weight": "700 !important",
             "font-size": "0.9rem !important",
             "text-transform": "none !important",
+        },
+        # Dark subheader for Season Style (empty second-tier row)
+        ".styles-dark-subheader": {
+            "background-color": f"{COLORS['dark1']} !important",
+            "border-bottom": "none !important",
+        },
+        # Remove horizontal line between first and second level headers
+        ".no-subheader-border": {
+            "border-bottom": "none !important",
         },
         ".team-style-header .ag-header-cell-text": {
             "white-space": "normal !important",
@@ -570,6 +645,120 @@ def get_team_styles_table_css() -> dict:
         },
     }
     return {**base, **styles_specific}
+
+
+def get_player_ratings_table_css() -> dict:
+    """CSS for player ratings table (player-level data, no logo column)."""
+    base = get_base_aggrid_css()
+    ratings_specific = {
+        # Fix whitespace: Make header empty space match body background
+        ".ag-header": {
+            "background-color": f"{COLORS['dark1']} !important",
+            "border-bottom": "1px solid rgba(255,255,255,0.1) !important",
+        },
+        ".ag-header-viewport": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        ".ag-header-container": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        ".ag-header-row": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        # Second tier headers
+        ".ag-header-cell": {
+            "background-color": f"{HEADER_BG} !important",
+            "color": "rgba(255,255,255,0.6) !important",
+            "font-weight": "600 !important",
+            "font-size": "0.75rem !important",
+            "text-transform": "uppercase !important",
+            "letter-spacing": "0.04em !important",
+        },
+        ".ag-header-cell-label": {
+            "justify-content": "center !important",
+        },
+        # Style header text wrapping
+        ".style-header-wrap .ag-header-cell-text": {
+            "white-space": "normal !important",
+            "text-align": "center !important",
+            "line-height": "1.2 !important",
+        },
+        # Group header
+        ".ag-header-group-cell": {
+            "color": "rgba(255,255,255,0.9) !important",
+            "font-weight": "700 !important",
+            "font-size": "0.9rem !important",
+            "border-bottom": "1px solid rgba(255,255,255,0.15) !important",
+            "text-align": "center !important",
+        },
+        ".ag-header-group-cell-label": {
+            "justify-content": "center !important",
+            "width": "100% !important",
+            "text-align": "center !important",
+        },
+        ".ag-header-group-text": {
+            "text-align": "center !important",
+            "width": "100% !important",
+        },
+        # Player column - left-aligned text (mirrors Team column behavior)
+        ".ag-cell[col-id='Player']": {
+            "justify-content": "flex-start !important",
+            "padding-left": "12px !important",
+            "border-right": "1px solid rgba(255,255,255,0.15) !important",
+        },
+        ".ag-header-cell[col-id='Player']": {
+            "background-color": f"{COLORS['dark1']} !important",
+            "border-right": "1px solid rgba(255,255,255,0.15) !important",
+        },
+        # Pinned left group header row - keep dark
+        ".ag-pinned-left-header .ag-header-group-cell": {
+            "background-color": f"{COLORS['dark1']} !important",
+            "border-right": "none !important",
+        },
+        ".ag-header-cell[col-id='Logo']": {
+            "background-color": f"{COLORS['dark1']} !important",
+            "border-right": "none !important",
+        },
+        # Overall rating column - bold green in Ratings mode
+        ".overall-rating-cell": {
+            "font-weight": "700 !important",
+            "color": f"{COLORS['green']} !important",
+        },
+        # Overall subheader - green background with dark text
+        ".overall-header": {
+            "background-color": f"{COLORS['green']} !important",
+            "color": f"{COLORS['dark']} !important",
+        },
+        ".overall-header .ag-header-cell-label": {
+            "color": f"{COLORS['dark']} !important",
+        },
+        # Dark subheader for Role/Minutes (empty second-tier row)
+        ".ratings-dark-subheader": {
+            "background-color": f"{COLORS['dark1']} !important",
+            "border-bottom": "none !important",
+        },
+        # Remove horizontal line between first and second level headers
+        ".no-subheader-border": {
+            "border-bottom": "none !important",
+        },
+        # Ensure all body/viewport containers have consistent background
+        ".ag-root": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        ".ag-center-cols-viewport": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        ".ag-center-cols-container": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        ".ag-center-cols-clipper": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+        ".ag-body-horizontal-scroll-viewport": {
+            "background-color": f"{COLORS['dark1']} !important",
+        },
+    }
+    return {**base, **ratings_specific}
 
 
 # =============================================================================
@@ -799,6 +988,75 @@ def prepare_team_tendencies_data(df: pd.DataFrame, show_percentiles: bool = Fals
             result[display_name] = df[col].round(0).astype(int)
 
     return result.sort_values("Team").reset_index(drop=True)
+
+
+def prepare_team_xg_data(df: pd.DataFrame, per_game: bool = False) -> pd.DataFrame:
+    """
+    Prepare expected goals data for display with logos.
+
+    Args:
+        df: Source data with team_name and xG columns
+        per_game: If True, divide all values by GAMES_PLAYED
+
+    Returns:
+        DataFrame with Logo, Team, and renamed xG columns
+    """
+    result = pd.DataFrame()
+    result["Logo"] = df["team_name"].apply(get_team_logo_base64)
+    result["Team"] = df["team_name"]
+    result["Pts"] = df["points"].astype(int)
+
+    decimals = 2 if per_game else 1
+    divisor = GAMES_PLAYED if per_game else 1
+    int_cols = {"shots", "sot", "shots_against", "sot_against"}
+
+    all_cols = XG_SUMMARY_COLUMNS + XG_COLUMNS + XG_AGAINST_COLUMNS
+    for col in all_cols:
+        display_name = XG_DISPLAY_NAMES[col]
+        # Prefix with group to avoid duplicate column names
+        if col in XG_AGAINST_COLUMNS:
+            field = f"Defense | {display_name}"
+        elif col in XG_SUMMARY_COLUMNS:
+            field = f"Total | {display_name}"
+        else:
+            field = f"Attack | {display_name}"
+        val = df[col] / divisor
+        if col in int_cols and not per_game:
+            result[field] = val.round(0).astype(int)
+        else:
+            result[field] = val.round(decimals)
+
+    return result.sort_values("Team").reset_index(drop=True)
+
+
+def prepare_player_ratings_data(df: pd.DataFrame, show_values: bool = False) -> pd.DataFrame:
+    """
+    Prepare player ratings data for display.
+
+    Args:
+        df: Source data with player_name, team_name, role, minutes_played, and rating columns
+        show_values: If True, show _aa per-90 values instead of ratings
+
+    Returns:
+        DataFrame with Logo, Player, Role, Minutes, and rating columns ready for AgGrid
+    """
+    result = pd.DataFrame()
+    result["Logo"] = df["team_name"].apply(
+        lambda x: get_team_logo_base64(x) if pd.notna(x) else ""
+    )
+    result["Player"] = df["player_name"]
+    result["Role"] = df["role"]
+    result["Minutes"] = df["minutes_played"].astype(int)
+
+    if show_values:
+        for display_name, aa_col in RATINGS_VALUES_COLUMNS.items():
+            result[display_name] = df[aa_col].astype(float).round(2)
+    else:
+        for col in RATINGS_COLUMNS:
+            display_name = RATINGS_DISPLAY_NAMES[col]
+            result[display_name] = df[col].astype(float).round(0).astype(int)
+
+    return result.sort_values("Overall", ascending=False).reset_index(drop=True)
 
 
 # =============================================================================
@@ -1076,7 +1334,7 @@ def render_team_styles_table(data: pd.DataFrame, show_percentiles: bool = False)
     # Season Style column - wrapped in a group for consistent two-tier header structure
     column_defs.append({
         "headerName": "Season Style",
-        "headerClass": "team-style-header",
+        "headerClass": "team-style-header no-subheader-border phase-divider-header",
         "children": [{
             "field": "Team Style",
             "headerName": "",
@@ -1086,7 +1344,7 @@ def render_team_styles_table(data: pd.DataFrame, show_percentiles: bool = False)
             "filter": False,
             "suppressMenu": True,
             "cellClass": "team-style-cell team-divider",
-            "headerClass": "team-style-header team-divider-header",
+            "headerClass": "styles-dark-subheader team-divider-header",
             "wrapText": True,
             "autoHeight": True,
         }],
@@ -1303,6 +1561,355 @@ def render_team_tendencies_table(data: pd.DataFrame, show_percentiles: bool = Fa
     )
 
 
+def render_team_xg_table(data: pd.DataFrame, per_game: bool = False) -> None:
+    """Render the expected goals table with AgGrid.
+
+    Args:
+        data: DataFrame with Logo, Team, and xG columns (prefixed with group names)
+        per_game: If True, format with 2 decimal places; otherwise 1
+    """
+    if data.empty:
+        st.info("No data matches the current filters.")
+        return
+
+    column_defs = [
+        create_logo_column_def(),
+        create_team_column_def("team-cell team-divider"),
+    ]
+
+    # cellClassRules to highlight sorted column
+    sorted_highlight_rule = JsCode("""
+        function(params) {
+            if (!params.api) return false;
+            const sortedCols = params.api.getColumnState().filter(c => c.sort);
+            if (sortedCols.length === 0) return false;
+            return sortedCols[0].colId === params.colDef.field;
+        }
+    """)
+
+    decimals = 2 if per_game else 1
+    decimal_formatter = JsCode(
+        f"function(params) {{ return params.value != null ? params.value.toFixed({decimals}) : '-'; }}"
+    )
+    int_formatter = JsCode(
+        "function(params) { return params.value != null ? Math.round(params.value).toString() : '-'; }"
+    )
+    int_fields = {"Shots", "SOT"}
+
+    # Build grouped columns: Total, Attack, Defense
+    groups = [
+        ("Total", [f"Total | {XG_DISPLAY_NAMES[c]}" for c in XG_SUMMARY_COLUMNS]),
+        ("Attack", [f"Attack | {XG_DISPLAY_NAMES[c]}" for c in XG_COLUMNS]),
+        ("Defense", [f"Defense | {XG_DISPLAY_NAMES[c]}" for c in XG_AGAINST_COLUMNS]),
+    ]
+
+    for group_idx, (group_name, fields) in enumerate(groups):
+        children = []
+        # Insert Pts as first child of Total group
+        if group_name == "Total":
+            children.append({
+                "field": "Pts",
+                "headerName": "Pts",
+                "width": 65,
+                "minWidth": 55,
+                "valueFormatter": int_formatter,
+                "type": ["numericColumn"],
+                "cellClass": "numeric-cell",
+                "cellClassRules": {
+                    "sorted-col-highlight": sorted_highlight_rule,
+                },
+                "sortable": True,
+                "filter": False,
+                "headerClass": "phase-band-1 style-header-wrap",
+                "wrapHeaderText": True,
+                "autoHeaderHeight": True,
+            })
+        band_offset = len(children)  # account for Pts column in Total group
+        for i, field in enumerate(fields):
+            display_name = field.split(" | ")[1]
+            is_last = (i == len(fields) - 1)
+            band_class = "phase-band-1" if (i + band_offset) % 2 == 0 else "phase-band-2"
+            base_class = "numeric-cell phase-divider" if is_last else "numeric-cell"
+            use_int = display_name in int_fields and not per_game
+            col_def = {
+                "field": field,
+                "headerName": display_name,
+                "width": 100,
+                "minWidth": 80,
+                "valueFormatter": int_formatter if use_int else decimal_formatter,
+                "type": ["numericColumn"],
+                "cellClass": base_class,
+                "cellClassRules": {
+                    "sorted-col-highlight": sorted_highlight_rule,
+                },
+                "sortable": True,
+                "filter": False,
+                "headerClass": f"{band_class} style-header-wrap" + (" phase-divider-header" if is_last else ""),
+                "wrapHeaderText": True,
+                "autoHeaderHeight": True,
+            }
+            children.append(col_def)
+
+        group_band = "phase-band-1" if group_idx % 2 == 0 else "phase-band-2"
+        column_defs.append({
+            "headerName": group_name,
+            "headerClass": f"{group_band} phase-divider-header",
+            "children": children,
+        })
+
+    # Refresh cells on sort change
+    on_sort_changed = JsCode("""
+        function(params) {
+            params.api.refreshCells({ force: true });
+        }
+    """)
+
+    on_grid_ready = get_mobile_unpin_callback(size_to_fit=False)
+
+    grid_options = {
+        "columnDefs": column_defs,
+        "defaultColDef": {
+            "sortable": True,
+            "resizable": True,
+            "wrapHeaderText": True,
+            "autoHeaderHeight": True,
+        },
+        "onSortChanged": on_sort_changed,
+        "onFirstDataRendered": on_sort_changed,
+        "onGridReady": on_grid_ready,
+        "domLayout": "normal",
+        "rowHeight": 36,
+        "headerHeight": 50,
+        "groupHeaderHeight": 32,
+        "suppressMovableColumns": True,
+        "enableRangeSelection": False,
+        "suppressRowClickSelection": True,
+        "suppressColumnVirtualisation": True,
+    }
+
+    custom_css = get_team_styles_table_css()
+
+    AgGrid(
+        data,
+        gridOptions=grid_options,
+        height=560,
+        allow_unsafe_jscode=True,
+        custom_css=custom_css,
+        theme="balham-dark",
+    )
+
+
+def render_player_ratings_table(data: pd.DataFrame, show_values: bool = False) -> None:
+    """Render the player ratings table with AgGrid."""
+    if data.empty:
+        st.info("No data matches the current filters.")
+        return
+
+    column_defs = [
+        create_logo_column_def(),
+        {
+            "field": "Player",
+            "headerName": "",
+            "pinned": "left",
+            "width": 280,
+            "minWidth": 280,
+            "sortable": True,
+            "filter": False,
+            "suppressMenu": True,
+            "cellClass": "team-divider",
+            "headerClass": "team-divider-header",
+        },
+    ]
+
+    # Minutes formatter
+    minutes_formatter = JsCode(
+        "function(params) { return params.value != null ? params.value.toLocaleString() : '-'; }"
+    )
+
+    # Value formatter based on mode
+    if show_values:
+        value_formatter = JsCode(
+            "function(params) { return params.value != null ? params.value.toFixed(2) : '-'; }"
+        )
+    else:
+        value_formatter = JsCode(
+            "function(params) { return params.value != null ? Math.round(params.value).toString() : '-'; }"
+        )
+
+    # Sort highlight rule
+    sorted_highlight_rule = JsCode("""
+        function(params) {
+            if (!params.api) return false;
+            const sortedCols = params.api.getColumnState().filter(c => c.sort);
+            if (sortedCols.length === 0) return false;
+            return sortedCols[0].colId === params.colDef.field;
+        }
+    """)
+
+    # Bold value formatter for Overall column
+    if show_values:
+        overall_formatter = JsCode(
+            "function(params) { return params.value != null ? params.value.toFixed(2) : '-'; }"
+        )
+    else:
+        overall_formatter = JsCode(
+            "function(params) { return params.value != null ? Math.round(params.value).toString() : '-'; }"
+        )
+
+    # Overall column - green header in Ratings mode, standard in Values mode
+    overall_header_class = (
+        "phase-band-2 style-header-wrap phase-divider-header"
+        if show_values
+        else "overall-header style-header-wrap phase-divider-header"
+    )
+    overall_col_def = {
+        "field": "Overall",
+        "headerName": "Overall",
+        "width": 90,
+        "minWidth": 80,
+        "valueFormatter": overall_formatter,
+        "type": ["numericColumn"],
+        "cellClass": "numeric-cell overall-rating-cell phase-divider" if not show_values else "numeric-cell phase-divider",
+        "cellClassRules": {
+            "sorted-col-highlight": sorted_highlight_rule,
+        },
+        "sortable": True,
+        "filter": False,
+        "headerClass": overall_header_class,
+        "wrapHeaderText": True,
+        "autoHeaderHeight": True,
+    }
+
+    # Build component rating columns (skip Overall)
+    component_names = [v for k, v in RATINGS_DISPLAY_NAMES.items() if k != "overall_rating"]
+    component_children = []
+    for i, col in enumerate(component_names):
+        is_last = (i == len(component_names) - 1)
+        band_class = "phase-band-1" if i % 2 == 0 else "phase-band-2"
+        base_class = "numeric-cell phase-divider" if is_last else "numeric-cell"
+        col_def = {
+            "field": col,
+            "headerName": col,
+            "minWidth": 105,
+            "flex": 1,
+            "valueFormatter": value_formatter,
+            "type": ["numericColumn"],
+            "cellClass": base_class,
+            "cellClassRules": {
+                "sorted-col-highlight": sorted_highlight_rule,
+            },
+            "sortable": True,
+            "filter": False,
+            "headerClass": f"{band_class} style-header-wrap" + (" phase-divider-header" if is_last else ""),
+            "wrapHeaderText": True,
+            "autoHeaderHeight": True,
+        }
+        component_children.append(col_def)
+
+    # Role - top-level group header
+    column_defs.append({
+        "headerName": "Role",
+        "headerClass": "phase-band-2 phase-divider-header",
+        "children": [{
+            "field": "Role",
+            "headerName": "",
+            "width": 70,
+            "minWidth": 60,
+            "sortable": True,
+            "filter": False,
+            "cellClass": "numeric-cell phase-divider",
+            "headerClass": "ratings-dark-subheader phase-divider-header",
+        }],
+    })
+
+    # Minutes - top-level group header
+    column_defs.append({
+        "headerName": "Minutes",
+        "headerClass": "phase-band-1 phase-divider-header",
+        "children": [{
+            "field": "Minutes",
+            "headerName": "",
+            "width": 90,
+            "minWidth": 80,
+            "valueFormatter": minutes_formatter,
+            "type": ["numericColumn"],
+            "cellClass": "numeric-cell phase-divider",
+            "sortable": True,
+            "filter": False,
+            "headerClass": "ratings-dark-subheader phase-divider-header",
+        }],
+    })
+
+    # Overall - top-level group with green-styled subheader
+    column_defs.append({
+        "headerName": "",
+        "headerClass": "phase-band-1",
+        "children": [overall_col_def],
+    })
+
+    # Component Ratings group
+    column_defs.append({
+        "headerName": "Ratings",
+        "headerClass": "phase-band-1",
+        "children": component_children,
+    })
+
+    # Callbacks
+    on_sort_changed = JsCode("""
+        function(params) {
+            params.api.refreshCells({ force: true });
+        }
+    """)
+
+    on_grid_ready = JsCode("""
+        function(params) {
+            const api = params.api;
+            const isMobile = window.innerWidth < 768;
+            if (isMobile) {
+                api.applyColumnState({
+                    state: [
+                        { colId: 'Logo', pinned: null },
+                        { colId: 'Player', pinned: null }
+                    ]
+                });
+            }
+            api.sizeColumnsToFit();
+        }
+    """)
+
+    grid_options = {
+        "columnDefs": column_defs,
+        "defaultColDef": {
+            "sortable": True,
+            "resizable": True,
+            "wrapHeaderText": True,
+            "autoHeaderHeight": True,
+        },
+        "onSortChanged": on_sort_changed,
+        "onFirstDataRendered": on_sort_changed,
+        "onGridReady": on_grid_ready,
+        "domLayout": "normal",
+        "rowHeight": 36,
+        "headerHeight": 50,
+        "groupHeaderHeight": 32,
+        "suppressMovableColumns": True,
+        "enableRangeSelection": False,
+        "suppressRowClickSelection": True,
+        "suppressColumnVirtualisation": True,
+    }
+
+    custom_css = get_player_ratings_table_css()
+
+    AgGrid(
+        data,
+        gridOptions=grid_options,
+        height=560,
+        allow_unsafe_jscode=True,
+        custom_css=custom_css,
+        theme="balham-dark",
+    )
+
+
 # =============================================================================
 # STYLES (CSS)
 # =============================================================================
@@ -1507,6 +2114,38 @@ def inject_styles() -> None:
             padding: 0 !important;
         }}
 
+        /* === Number input styling (minutes filter) === */
+        div[data-testid="stNumberInput"] {{
+            margin: 0 !important;
+            padding: 0 !important;
+        }}
+
+        div[data-testid="stNumberInput"] > div {{
+            border-radius: var(--control-radius) !important;
+            background: {COLORS['dark']} !important;
+            border: 1px solid rgba(255,255,255,0.10) !important;
+            overflow: hidden;
+        }}
+
+        div[data-testid="stNumberInput"] input {{
+            height: var(--control-height) !important;
+            background: transparent !important;
+            border: none !important;
+            color: rgba(255,255,255,0.92) !important;
+            text-align: center !important;
+            font-size: 0.875rem !important;
+        }}
+
+        div[data-testid="stNumberInput"] button {{
+            background: transparent !important;
+            border: none !important;
+            color: rgba(255,255,255,0.4) !important;
+        }}
+
+        div[data-testid="stNumberInput"] button:hover {{
+            color: rgba(255,255,255,0.9) !important;
+        }}
+
         /* === AgGrid container styling === */
         /* The AgGrid component styles are applied via custom_css parameter in render_data_table() */
 
@@ -1690,6 +2329,116 @@ def render_team_tendencies_tab() -> None:
         render_csv_download(table_data, "futi_team_tendencies.csv")
 
 
+def render_team_xg_tab() -> None:
+    """Render the Team Performance tab content."""
+    data_path = Path(__file__).resolve().parent / "team_xg.csv"
+    if not data_path.exists():
+        st.error("Missing team_xg.csv in the app directory")
+        st.stop()
+
+    df = load_data(str(data_path), get_file_mtime(data_path))
+
+    with st.container(border=True):
+        conference_options = ["All MLS", "Eastern Conference", "Western Conference"]
+
+        col_conference, col_toggle = st.columns([3, 3], vertical_alignment="center")
+
+        with col_conference:
+            conference_choice = st.selectbox(
+                "Conference",
+                conference_options,
+                index=0,
+                label_visibility="collapsed",
+                key="xg_conference",
+            )
+
+        with col_toggle:
+            render_toggle(["Totals", "Per Game"], key="xg_view_mode", default="Totals")
+
+        # Filter by conference
+        filtered_df = filter_by_conference(df, conference_choice)
+
+        # Prepare and display table
+        per_game = st.session_state.get("xg_view_mode", "Totals") == "Per Game"
+        table_data = prepare_team_xg_data(filtered_df, per_game)
+
+        st.markdown("<div style='height: 6px;'></div>", unsafe_allow_html=True)
+
+        render_team_xg_table(table_data, per_game)
+
+        render_csv_download(table_data, "futi_expected_goals.csv")
+
+
+def render_player_ratings_tab() -> None:
+    """Render the Player Ratings tab content."""
+    data_path = Path(__file__).resolve().parent / "drafts" / "player_ratings.csv"
+    if not data_path.exists():
+        st.error("Missing player_ratings.csv in the app directory")
+        st.stop()
+
+    df = load_data(str(data_path), get_file_mtime(data_path))
+
+    with st.container(border=True):
+        role_options = ["All Roles"] + sorted(df["role"].dropna().unique().tolist())
+        team_options = ["All Teams"] + sorted(df["team_name"].dropna().unique().tolist())
+
+        col_team, col_role, col_minutes, col_toggle = st.columns(
+            [2.5, 2, 1.5, 3], vertical_alignment="center"
+        )
+
+        with col_team:
+            team_choice = st.selectbox(
+                "Team",
+                team_options,
+                index=0,
+                label_visibility="collapsed",
+                key="ratings_team",
+            )
+
+        with col_role:
+            role_choice = st.selectbox(
+                "Position",
+                role_options,
+                index=0,
+                label_visibility="collapsed",
+                key="ratings_role",
+            )
+
+        with col_minutes:
+            min_minutes = st.number_input(
+                "Min minutes",
+                min_value=0,
+                max_value=int(df["minutes_played"].max()),
+                value=None,
+                step=100,
+                label_visibility="collapsed",
+                key="ratings_min_minutes",
+                placeholder="Minutes",
+            )
+
+        with col_toggle:
+            render_toggle(["Ratings", "Values"], key="ratings_view_mode", default="Ratings")
+
+        # Filter by team, role, and minutes
+        filtered_df = df.copy()
+        if team_choice != "All Teams":
+            filtered_df = filtered_df[filtered_df["team_name"] == team_choice]
+        if role_choice != "All Roles":
+            filtered_df = filtered_df[filtered_df["role"] == role_choice]
+        if min_minutes is not None and min_minutes > 0:
+            filtered_df = filtered_df[filtered_df["minutes_played"] >= min_minutes]
+
+        # Prepare and display table
+        show_values = st.session_state.get("ratings_view_mode", "Ratings") == "Values"
+        table_data = prepare_player_ratings_data(filtered_df, show_values)
+
+        st.markdown("<div style='height: 6px;'></div>", unsafe_allow_html=True)
+
+        render_player_ratings_table(table_data, show_values)
+
+        render_csv_download(table_data, "futi_player_ratings.csv")
+
+
 # def render_team_stats_tab() -> None:
 #     """Render the Team Stats tab content (placeholder)."""
 #     with st.container(border=True):
@@ -1717,7 +2466,9 @@ def main() -> None:
     st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
     # Main navigation tabs
-    tab_phases, tab_styles, tab_tendencies = st.tabs(["Phases", "Team Styles", "Team Tendencies"])
+    tab_phases, tab_styles, tab_tendencies, tab_xg = st.tabs([
+        "Phases", "Team Styles", "Team Tendencies", "Team Performance",
+    ])
 
     with tab_phases:
         render_phases_tab()
@@ -1727,6 +2478,12 @@ def main() -> None:
 
     with tab_tendencies:
         render_team_tendencies_tab()
+
+    with tab_xg:
+        render_team_xg_tab()
+
+    # with tab_ratings:
+    #     render_player_ratings_tab()
 
 
 if __name__ == "__main__":

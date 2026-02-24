@@ -22,5 +22,8 @@ env/
 *.swp
 *.swo
 
+# Draft data (not ready for release)
+drafts/
+
 # Claude
 .claude/
