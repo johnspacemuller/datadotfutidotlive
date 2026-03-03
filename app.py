@@ -14,7 +14,9 @@ import base64
 from pathlib import Path
 
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
+import streamlit.components.v1 as components
 from st_aggrid import AgGrid, JsCode
 
 # =============================================================================
@@ -190,6 +192,61 @@ XG_DISPLAY_NAMES = {
     "xpoints": "xPts",
     "xgd": "xGD",
     "npxgd": "npxGD",
+}
+
+RATING_COLUMNS = ["overall_pct", "attack_pct", "defense_pct"]
+RATING_DISPLAY_NAMES = {
+    "overall_pct": "Overall",
+    "attack_pct": "Attack",
+    "defense_pct": "Defense",
+}
+
+# Team hex colors adjusted for visibility on dark backgrounds
+TEAM_COLORS = {
+    "Atlanta United": "#80000A",
+    "Austin FC": "#00B140",
+    "CF Montreal": "#0033A1",
+    "Charlotte": "#1A85C8",
+    "Chicago Fire": "#FF0000",
+    "Cincinnati": "#FC4C02",
+    "Colorado Rapids": "#862633",
+    "Columbus Crew": "#FEDD00",
+    "DC United": "#EF3E42",
+    "FC Dallas": "#E81F3E",
+    "Houston Dynamo": "#F68712",
+    "Inter Miami": "#F7B5CD",
+    "LA Galaxy": "#FFD200",
+    "LAFC": "#C39E6D",
+    "Minnesota United": "#9BCEE2",
+    "Nashville SC": "#ECE83A",
+    "New England Revolution": "#C63323",
+    "New York City FC": "#6CACE4",
+    "New York Red Bulls": "#ED1E36",
+    "Orlando City": "#633492",
+    "Philadelphia Union": "#B1872D",
+    "Portland Timbers": "#00482B",
+    "Real Salt Lake": "#B30838",
+    "San Diego FC": "#00685E",
+    "San Jose Earthquakes": "#0067B1",
+    "Seattle Sounders": "#5D9741",
+    "Sporting Kansas City": "#93B1D7",
+    "St. Louis City": "#D62F43",
+    "Toronto FC": "#E31937",
+    "Vancouver Whitecaps": "#5E87A0",
+}
+
+# Rating type colors for single-team view
+RATING_TYPE_COLORS = {
+    "Overall": COLORS["green"],
+    "Attack": COLORS["pink"],
+    "Defense": COLORS["blue"],
+}
+
+# Maps display names to CSV column names for rating types
+RATING_TYPE_COLUMNS = {
+    "Overall": "overall_pct",
+    "Attack": "attack_pct",
+    "Defense": "defense_pct",
 }
 
 # =============================================================================
@@ -1004,6 +1061,18 @@ def prepare_team_xg_data(df: pd.DataFrame, per_game: bool = False) -> pd.DataFra
     result = pd.DataFrame()
     result["Logo"] = df["team_name"].apply(get_team_logo_base64)
     result["Team"] = df["team_name"]
+
+    # Merge latest team ratings
+    ratings_path = Path(__file__).resolve().parent / "team_ratings.csv"
+    if ratings_path.exists():
+        ratings_df = pd.read_csv(str(ratings_path))
+        ratings_df["rating_date"] = pd.to_datetime(ratings_df["rating_date"])
+        latest_ratings = ratings_df.loc[ratings_df.groupby("team_name")["rating_date"].idxmax()]
+        df = df.merge(latest_ratings[["team_name"] + RATING_COLUMNS], on="team_name", how="left")
+        for col in RATING_COLUMNS:
+            field = f"Rating | {RATING_DISPLAY_NAMES[col]}"
+            result[field] = df[col].astype("Int64")
+
     result["Pts"] = df["points"].astype(int)
 
     decimals = 2 if per_game else 1
@@ -1287,6 +1356,7 @@ def render_data_table(
         "columnDefs": column_defs,
         "defaultColDef": {
             "sortable": True,
+            "sortingOrder": ["desc", "asc", None],
             "resizable": True,
         },
         "onSortChanged": on_sort_changed,
@@ -1420,6 +1490,7 @@ def render_team_styles_table(data: pd.DataFrame, show_percentiles: bool = False)
         "columnDefs": column_defs,
         "defaultColDef": {
             "sortable": True,
+            "sortingOrder": ["desc", "asc", None],
             "resizable": True,
             "wrapHeaderText": True,
             "autoHeaderHeight": True,
@@ -1531,6 +1602,7 @@ def render_team_tendencies_table(data: pd.DataFrame, show_percentiles: bool = Fa
         "columnDefs": column_defs,
         "defaultColDef": {
             "sortable": True,
+            "sortingOrder": ["desc", "asc", None],
             "resizable": True,
             "wrapHeaderText": True,
             "autoHeaderHeight": True,
@@ -1596,6 +1668,43 @@ def render_team_xg_table(data: pd.DataFrame, per_game: bool = False) -> None:
     )
     int_fields = {"Shots", "SOT"}
 
+    # Build Rating group (Overall, Attack, Defense)
+    rating_fields = [f"Rating | {RATING_DISPLAY_NAMES[c]}" for c in RATING_COLUMNS]
+    if all(f in data.columns for f in rating_fields):
+        rating_overall_style = JsCode(
+            "function(params) { return params.value != null ? params.value.toString() : '-'; }"
+        )
+        rating_children = []
+        for i, field in enumerate(rating_fields):
+            display_name = field.split(" | ")[1]
+            is_last = (i == len(rating_fields) - 1)
+            band_class = "phase-band-1" if i % 2 == 0 else "phase-band-2"
+            cell_class = "numeric-cell rating-overall" if display_name == "Overall" else "numeric-cell rating-other"
+            if is_last:
+                cell_class += " phase-divider"
+            rating_children.append({
+                "field": field,
+                "headerName": display_name,
+                "width": 80,
+                "minWidth": 65,
+                "valueFormatter": rating_overall_style,
+                "type": ["numericColumn"],
+                "cellClass": cell_class,
+                "cellClassRules": {
+                    "sorted-col-highlight": sorted_highlight_rule,
+                },
+                "sortable": True,
+                "filter": False,
+                "headerClass": f"{band_class} style-header-wrap" + (" phase-divider-header" if is_last else ""),
+                "wrapHeaderText": True,
+                "autoHeaderHeight": True,
+            })
+        column_defs.append({
+            "headerName": "Rating",
+            "headerClass": "phase-band-1 phase-divider-header",
+            "children": rating_children,
+        })
+
     # Build grouped columns: Total, Attack, Defense
     groups = [
         ("Total", [f"Total | {XG_DISPLAY_NAMES[c]}" for c in XG_SUMMARY_COLUMNS]),
@@ -1620,7 +1729,7 @@ def render_team_xg_table(data: pd.DataFrame, per_game: bool = False) -> None:
                 },
                 "sortable": True,
                 "filter": False,
-                "headerClass": "phase-band-1 style-header-wrap",
+                "headerClass": "phase-band-2 style-header-wrap",
                 "wrapHeaderText": True,
                 "autoHeaderHeight": True,
             })
@@ -1628,7 +1737,7 @@ def render_team_xg_table(data: pd.DataFrame, per_game: bool = False) -> None:
         for i, field in enumerate(fields):
             display_name = field.split(" | ")[1]
             is_last = (i == len(fields) - 1)
-            band_class = "phase-band-1" if (i + band_offset) % 2 == 0 else "phase-band-2"
+            band_class = "phase-band-2" if (i + band_offset) % 2 == 0 else "phase-band-1"
             base_class = "numeric-cell phase-divider" if is_last else "numeric-cell"
             use_int = display_name in int_fields and not per_game
             col_def = {
@@ -1670,6 +1779,7 @@ def render_team_xg_table(data: pd.DataFrame, per_game: bool = False) -> None:
         "columnDefs": column_defs,
         "defaultColDef": {
             "sortable": True,
+            "sortingOrder": ["desc", "asc", None],
             "resizable": True,
             "wrapHeaderText": True,
             "autoHeaderHeight": True,
@@ -1688,6 +1798,16 @@ def render_team_xg_table(data: pd.DataFrame, per_game: bool = False) -> None:
     }
 
     custom_css = get_team_styles_table_css()
+    custom_css.update({
+        ".rating-overall": {
+            "color": f"{COLORS['green']} !important",
+            "font-weight": "700 !important",
+        },
+        ".rating-other": {
+            "color": "#ffffff !important",
+            "font-weight": "700 !important",
+        },
+    })
 
     AgGrid(
         data,
@@ -1881,6 +2001,7 @@ def render_player_ratings_table(data: pd.DataFrame, show_values: bool = False) -
         "columnDefs": column_defs,
         "defaultColDef": {
             "sortable": True,
+            "sortingOrder": ["desc", "asc", None],
             "resizable": True,
             "wrapHeaderText": True,
             "autoHeaderHeight": True,
@@ -2057,11 +2178,11 @@ def inject_styles() -> None:
 
         [data-testid="stSegmentedControl"] [data-baseweb="button-group"],
         [data-testid="stSegmentedControl"] [data-baseweb="button-group"] > div {{
-            display: inline-flex !important;
+            display: flex !important;
             flex-direction: row !important;
             flex-wrap: nowrap !important;
             height: var(--control-height) !important;
-            width: auto !important;
+            width: 100% !important;
         }}
 
         [data-testid="stSegmentedControl"] button {{
@@ -2072,7 +2193,7 @@ def inject_styles() -> None:
             padding: 0 18px !important;
             border-radius: 0 !important;
             white-space: nowrap !important;
-            flex: 0 0 auto !important;
+            flex: 1 1 0% !important;
             font-size: 0.875rem !important;
             font-weight: 500 !important;
             background: transparent !important;
@@ -2190,6 +2311,12 @@ def inject_styles() -> None:
 
         .stTabs [data-baseweb="tab-border"] {{
             display: none;
+        }}
+
+        /* Inset slider track to align within dropdown rounded corners */
+        .stSlider {{
+            padding-left: 3% !important;
+            padding-right: 3% !important;
         }}
 
         </style>
@@ -2369,6 +2496,379 @@ def render_team_xg_tab() -> None:
         render_csv_download(table_data, "futi_expected_goals.csv")
 
 
+# =============================================================================
+# RATING HISTORY TAB
+# =============================================================================
+
+
+def _apply_chart_layout(fig: go.Figure) -> None:
+    """Apply shared dark-theme Plotly layout styling."""
+    fig.update_layout(
+        height=500,
+        margin=dict(l=50, r=0, t=30, b=40),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter, system-ui, -apple-system, sans-serif", color="white", size=14),
+        hovermode="x unified",
+        yaxis=dict(
+            range=[0, 100],
+            gridcolor="rgba(255,255,255,0.06)",
+            zeroline=False,
+            title=None,
+            tickfont=dict(size=13),
+            ticksuffix="  ",
+        ),
+        xaxis=dict(
+            showgrid=True,
+            gridcolor="rgba(255,255,255,0.06)",
+            zeroline=False,
+            dtick="M12",
+            tick0="2016-01-01",
+            tickformat="%Y",
+            title=None,
+            tickfont=dict(size=13),
+        ),
+    )
+
+
+def _render_date_slider(df: pd.DataFrame, key_prefix: str) -> tuple[int, int]:
+    """Render a year-range slider and return (start_year, end_year)."""
+    min_year = df["rating_date"].dt.year.min()
+    max_year = df["rating_date"].dt.year.max()
+    years = list(range(min_year, max_year + 1))
+    if len(years) < 2:
+        return min_year, max_year
+    return st.select_slider(
+        "Date range",
+        options=years,
+        value=(min_year, max_year),
+        label_visibility="collapsed",
+        key=f"{key_prefix}_date_range",
+    )
+
+
+def _filter_by_date(df: pd.DataFrame, start_year: int, end_year: int) -> pd.DataFrame:
+    """Filter dataframe to rows within the year range."""
+    return df[
+        (df["rating_date"].dt.year >= start_year)
+        & (df["rating_date"].dt.year <= end_year)
+    ]
+
+
+def _render_team_history_view(df: pd.DataFrame, all_teams: list[str]) -> None:
+    """Render single-team rating history with Overall/Attack/Defense lines."""
+    # Row 1: Team selectbox (left) | Compare/History toggle (right)
+    col_team, col_toggle = st.columns([3, 3], vertical_alignment="center")
+    with col_team:
+        team = st.selectbox(
+            "Team",
+            all_teams,
+            index=0,
+            label_visibility="collapsed",
+            key="history_team",
+        )
+    with col_toggle:
+        render_toggle(
+            ["Compare Teams", "Team History"],
+            key="history_view_mode",
+            default="Team History",
+        )
+
+    # Row 2: Date slider
+    col_date, _ = st.columns([3, 3], vertical_alignment="center")
+    with col_date:
+        start_year, end_year = _render_date_slider(df, "team_history")
+
+    team_df = _filter_by_date(
+        df[df["team_name"] == team].sort_values("rating_date"),
+        start_year, end_year,
+    )
+
+    # Add traces with Overall last so green line is on top (z-order)
+    fig = go.Figure()
+    ordered = ["Defense", "Attack", "Overall"]  # Overall last = on top (z-order)
+    for display_name in ordered:
+        col_name = RATING_TYPE_COLUMNS[display_name]
+        fig.add_trace(go.Scatter(
+            x=team_df["rating_date"],
+            y=team_df[col_name],
+            mode="lines",
+            name=display_name,
+            line=dict(color=RATING_TYPE_COLORS[display_name], width=2),
+            hovertemplate=f"{display_name}: %{{y}}<extra></extra>",
+        ))
+
+    _apply_chart_layout(fig)
+    fig.update_layout(
+        xaxis=dict(
+            spikemode="across",
+            spikethickness=1,
+            spikecolor="white",
+            spikedash="solid",
+            hoverformat="%B %Y",
+        ),
+        legend=dict(
+            orientation="h",
+            traceorder="reversed",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="left",
+            x=0,
+        ),
+    )
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+
+def _render_compare_teams_view(df: pd.DataFrame, all_teams: list[str]) -> None:
+    """Render multi-team comparison for a single rating type."""
+    # Default all teams to checked (re-applies each time view is entered,
+    # since Streamlit clears widget keys when widgets leave the DOM)
+    for team in all_teams:
+        if f"hist_cb_{team}" not in st.session_state:
+            st.session_state[f"hist_cb_{team}"] = True
+
+    # Row 1: Team picker (left) | Compare/History toggle (right)
+    col_teams, col_toggle = st.columns([3, 3], vertical_alignment="center")
+    with col_teams:
+        n_selected = sum(1 for t in all_teams if st.session_state.get(f"hist_cb_{t}", True))
+        if n_selected == len(all_teams):
+            label = "All MLS"
+        elif n_selected == 0:
+            label = "No teams"
+        elif n_selected == 1:
+            selected_name = next(t for t in all_teams if st.session_state.get(f"hist_cb_{t}", True))
+            label = selected_name
+        else:
+            label = f"{n_selected} teams"
+
+        with st.popover(label, use_container_width=True):
+            col_all, col_none = st.columns(2)
+            with col_all:
+                if st.button("Select All", use_container_width=True, key="hist_all"):
+                    for team in all_teams:
+                        st.session_state[f"hist_cb_{team}"] = True
+                    st.rerun()
+            with col_none:
+                if st.button("Select None", use_container_width=True, key="hist_none"):
+                    for team in all_teams:
+                        st.session_state[f"hist_cb_{team}"] = False
+                    st.rerun()
+
+            for team in all_teams:
+                st.checkbox(team, key=f"hist_cb_{team}")
+
+    with col_toggle:
+        render_toggle(
+            ["Compare Teams", "Team History"],
+            key="history_view_mode",
+            default="Compare Teams",
+        )
+
+    # Row 2: Date slider (left) | Rating toggle (right)
+    col_date, col_rating = st.columns([3, 3], vertical_alignment="center")
+    with col_date:
+        start_year, end_year = _render_date_slider(df, "compare")
+    with col_rating:
+        render_toggle(
+            ["Overall", "Attack", "Defense"],
+            key="history_rating_type",
+            default="Overall",
+        )
+
+    # Determine selected teams from checkboxes
+    selected_teams = [t for t in all_teams if st.session_state.get(f"hist_cb_{t}", True)]
+
+    rating_type = st.session_state.get("history_rating_type", "Overall")
+    col_name = RATING_TYPE_COLUMNS[rating_type]
+
+    # Apply date filter
+    filtered_df = _filter_by_date(df, start_year, end_year)
+
+    fig = go.Figure()
+    logos_dir = Path(__file__).resolve().parent / "logos"
+    logo_data = []
+
+    for team in selected_teams:
+        team_df = filtered_df[filtered_df["team_name"] == team].sort_values("rating_date")
+        if team_df.empty:
+            continue
+
+        color = TEAM_COLORS.get(team, "#FFFFFF")
+
+        # Glow trace: white outline behind the colored line, hidden by default
+        fig.add_trace(go.Scatter(
+            x=team_df["rating_date"],
+            y=team_df[col_name],
+            mode="lines",
+            line=dict(color="white", width=5),
+            opacity=0,
+            hoverinfo="skip",
+            showlegend=False,
+        ))
+
+        # Main colored trace
+        fig.add_trace(go.Scatter(
+            x=team_df["rating_date"],
+            y=team_df[col_name],
+            mode="lines+markers",
+            name=team,
+            line=dict(color=color, width=2),
+            marker=dict(size=20, opacity=0),
+            opacity=0.7,
+            hovertemplate=f"{team}: %{{y}}<extra></extra>",
+            showlegend=False,
+        ))
+
+        last_row = team_df.iloc[-1]
+        logo_path = logos_dir / f"{team}.png"
+        if logo_path.exists():
+            logo_data.append((last_row["rating_date"], last_row[col_name], logo_path))
+
+    # Determine x-axis range (always show years even with no teams)
+    date_range_df = filtered_df if not filtered_df.empty else df
+    x_min = date_range_df["rating_date"].min()
+    x_max = date_range_df["rating_date"].max()
+
+    # Add logos at each line's endpoint
+    for last_x, y_val, logo_path in logo_data:
+        with open(logo_path, "rb") as f:
+            encoded = base64.b64encode(f.read()).decode()
+        fig.add_layout_image(
+            dict(
+                source=f"data:image/png;base64,{encoded}",
+                x=last_x,
+                y=y_val,
+                xref="x",
+                yref="y",
+                sizex=56 * 24 * 60 * 60 * 1000,
+                sizey=4,
+                xanchor="left",
+                yanchor="middle",
+            )
+        )
+
+    _apply_chart_layout(fig)
+    fig.update_layout(
+        xaxis=dict(
+            range=[x_min, x_max + pd.Timedelta(days=75)],
+            type="date",
+        ),
+        hovermode="closest",
+    )
+
+    # Render as raw HTML with client-side hover-to-highlight JS
+    chart_html = fig.to_html(
+        include_plotlyjs="cdn",
+        full_html=False,
+        config={"displayModeBar": False},
+    )
+    hover_js = """
+    <style>body { background: transparent !important; margin: 0; }</style>
+    <script>
+    (function() {
+        function setup() {
+            var plot = document.querySelector('.plotly-graph-div');
+            if (!plot || !plot.data) { setTimeout(setup, 100); return; }
+            // Traces are paired: glow (i*2) + color (i*2+1) per team
+            var n = plot.data.length;
+            var numTeams = n / 2;
+            var locked = -1;
+
+            function highlight(colorIdx) {
+                // colorIdx is the index of the colored trace (odd indices)
+                var glowIdx = colorIdx - 1;
+                var opac = [], widths = [];
+                for (var i = 0; i < n; i++) {
+                    if (i === glowIdx) {
+                        opac.push(0.4);  // show white glow
+                        widths.push(5);
+                    } else if (i === colorIdx) {
+                        opac.push(1.0);
+                        widths.push(3);
+                    } else if (i % 2 === 0) {
+                        opac.push(0);    // hide other glows
+                        widths.push(5);
+                    } else {
+                        opac.push(0.15); // dim other lines
+                        widths.push(1.5);
+                    }
+                }
+                Plotly.restyle(plot, {opacity: opac, 'line.width': widths});
+            }
+
+            function resetAll() {
+                var opac = [], widths = [];
+                for (var i = 0; i < n; i++) {
+                    if (i % 2 === 0) {
+                        opac.push(0);    // glows hidden
+                        widths.push(5);
+                    } else {
+                        opac.push(0.7);  // normal lines
+                        widths.push(2);
+                    }
+                }
+                Plotly.restyle(plot, {opacity: opac, 'line.width': widths});
+            }
+
+            plot.on('plotly_hover', function(data) {
+                if (locked >= 0) return;
+                highlight(data.points[0].curveNumber);
+            });
+
+            plot.on('plotly_unhover', function() {
+                if (locked >= 0) return;
+                resetAll();
+            });
+
+            plot.on('plotly_click', function(data) {
+                var ci = data.points[0].curveNumber;
+                if (locked === ci) {
+                    locked = -1;
+                    resetAll();
+                } else {
+                    locked = ci;
+                    highlight(ci);
+                }
+            });
+
+            // Double-click anywhere to unlock
+            plot.on('plotly_doubleclick', function() {
+                if (locked >= 0) {
+                    locked = -1;
+                    resetAll();
+                }
+            });
+        }
+        setup();
+    })();
+    </script>
+    """
+    components.html(
+        chart_html + hover_js,
+        height=530,
+        scrolling=False,
+    )
+
+
+def render_rating_history_tab() -> None:
+    """Render the Team Ratings tab content."""
+    data_path = Path(__file__).resolve().parent / "team_ratings.csv"
+    if not data_path.exists():
+        st.error("Missing team_ratings.csv in the app directory")
+        st.stop()
+
+    df = load_data(str(data_path), get_file_mtime(data_path))
+    df["rating_date"] = pd.to_datetime(df["rating_date"])
+    all_teams = sorted(df["team_name"].unique().tolist())
+
+    with st.container(border=True):
+        view_mode = st.session_state.get("history_view_mode", "Compare Teams")
+        if view_mode == "Team History":
+            _render_team_history_view(df, all_teams)
+        else:
+            _render_compare_teams_view(df, all_teams)
+
+
 def render_player_ratings_tab() -> None:
     """Render the Player Ratings tab content."""
     data_path = Path(__file__).resolve().parent / "drafts" / "player_ratings.csv"
@@ -2419,7 +2919,16 @@ def render_player_ratings_tab() -> None:
         with col_toggle:
             render_toggle(["Ratings", "Values"], key="ratings_view_mode", default="Ratings")
 
-        # Filter by team, role, and minutes
+        col_search, _ = st.columns([4.5, 4.5])
+        with col_search:
+            player_search = st.text_input(
+                "Search players",
+                label_visibility="collapsed",
+                key="ratings_player_search",
+                placeholder="Search players",
+            )
+
+        # Filter by team, role, minutes, and player name
         filtered_df = df.copy()
         if team_choice != "All Teams":
             filtered_df = filtered_df[filtered_df["team_name"] == team_choice]
@@ -2427,6 +2936,8 @@ def render_player_ratings_tab() -> None:
             filtered_df = filtered_df[filtered_df["role"] == role_choice]
         if min_minutes is not None and min_minutes > 0:
             filtered_df = filtered_df[filtered_df["minutes_played"] >= min_minutes]
+        if player_search:
+            filtered_df = filtered_df[filtered_df["player_name"].str.contains(player_search, case=False, na=False)]
 
         # Prepare and display table
         show_values = st.session_state.get("ratings_view_mode", "Ratings") == "Values"
@@ -2466,8 +2977,9 @@ def main() -> None:
     st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
     # Main navigation tabs
-    tab_phases, tab_styles, tab_tendencies, tab_xg = st.tabs([
+    tab_phases, tab_styles, tab_tendencies, tab_xg, tab_history = st.tabs([
         "Phases", "Team Styles", "Team Tendencies", "Team Performance",
+        "Team Ratings",
     ])
 
     with tab_phases:
@@ -2482,6 +2994,10 @@ def main() -> None:
     with tab_xg:
         render_team_xg_tab()
 
+    with tab_history:
+        render_rating_history_tab()
+
+    # Player Ratings tab — hidden until ready for public release
     # with tab_ratings:
     #     render_player_ratings_tab()
 
