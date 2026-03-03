@@ -5,11 +5,9 @@ Columbus Crew,2020-09-01,29,99,64
 Nashville SC,2020-04-01,14,99,56
 Seattle Sounders,2024-11-01,42,95,68
 Toronto FC,2018-01-01,77,93,85
-Seattle Sounders,2024-06-01,38,93,66
 Columbus Crew,2020-08-01,60,92,76
 Seattle Sounders,2025-03-01,42,92,67
 New York City FC,2022-01-01,77,91,84
-Cincinnati,2024-06-01,72,91,82
 Seattle Sounders,2024-10-01,41,91,66
 New York Red Bulls,2024-05-01,48,90,69
 Seattle Sounders,2024-12-01,43,90,66
@@ -18,7 +16,6 @@ Real Salt Lake,2020-07-01,40,89,64
 New York City FC,2020-10-01,71,88,80
 Seattle Sounders,2021-07-01,62,88,75
 New York City FC,2022-03-01,74,87,80
-LAFC,2024-06-01,74,87,80
 Seattle Sounders,2018-01-01,72,87,80
 New York Red Bulls,2022-03-01,64,87,76
 New York Red Bulls,2022-05-01,63,87,75
@@ -41,7 +38,6 @@ Seattle Sounders,2025-05-01,49,85,67
 Seattle Sounders,2023-11-01,48,85,66
 Seattle Sounders,2025-04-01,46,85,66
 Seattle Sounders,2024-03-01,45,85,65
-Houston Dynamo,2024-06-01,44,85,64
 New York City FC,2021-12-01,77,84,80
 Philadelphia Union,2022-04-01,64,84,74
 Sporting Kansas City,2017-11-01,59,84,72
@@ -130,7 +126,6 @@ New York City FC,2018-04-01,75,78,76
 Atlanta United,2018-09-01,74,78,76
 Minnesota United,2020-07-01,74,78,76
 Philadelphia Union,2022-11-01,71,78,74
-New York Red Bulls,2024-06-01,68,78,73
 Atlanta United,2018-08-01,67,78,72
 Philadelphia Union,2022-03-01,67,78,72
 New England Revolution,2020-11-01,62,78,70
@@ -179,11 +174,9 @@ New York Red Bulls,2024-09-01,56,76,66
 New York Red Bulls,2024-08-01,55,76,66
 Seattle Sounders,2023-09-01,52,76,64
 Houston Dynamo,2024-01-01,49,76,62
-Orlando City,2024-06-01,48,76,62
 New York Red Bulls,2023-10-01,46,76,61
 Houston Dynamo,2024-10-01,45,76,60
 New York City FC,2024-03-01,43,76,60
-Charlotte,2024-06-01,40,76,58
 Sporting Kansas City,2018-12-01,85,75,80
 Atlanta United,2018-04-01,83,75,79
 New York Red Bulls,2018-05-01,82,75,78
@@ -193,7 +186,6 @@ Sporting Kansas City,2018-04-01,77,75,76
 Columbus Crew,2018-04-01,72,75,74
 Atlanta United,2018-11-01,72,75,74
 Toronto FC,2017-04-01,66,75,70
-New York City FC,2024-06-01,65,75,70
 Philadelphia Union,2025-10-01,64,75,70
 New York Red Bulls,2019-04-01,63,75,69
 Vancouver Whitecaps,2025-06-01,62,75,68
@@ -209,7 +201,6 @@ Houston Dynamo,2023-10-01,48,75,62
 Seattle Sounders,2024-07-01,39,75,57
 Nashville SC,2023-11-01,35,75,55
 Real Salt Lake,2020-03-01,33,75,54
-Nashville SC,2024-06-01,33,75,54
 Nashville SC,2020-09-01,32,75,54
 Atlanta United,2017-04-01,96,74,85
 New York City FC,2022-05-01,87,74,80
@@ -247,7 +238,6 @@ Sporting Kansas City,2018-11-01,82,73,78
 LAFC,2019-04-01,81,73,77
 Columbus Crew,2021-04-01,81,73,77
 New York Red Bulls,2018-11-01,80,73,76
-Real Salt Lake,2024-06-01,79,73,76
 Sporting Kansas City,2018-05-01,77,73,75
 LAFC,2023-05-01,77,73,75
 New York City FC,2017-10-01,72,73,72
@@ -443,7 +433,6 @@ Sporting Kansas City,2020-11-01,72,68,70
 New England Revolution,2021-06-01,71,68,70
 Minnesota United,2020-04-01,69,68,68
 Cincinnati,2023-11-01,69,68,68
-Columbus Crew,2024-06-01,68,68,68
 Columbus Crew,2025-05-01,66,68,67
 Seattle Sounders,2017-10-01,65,68,66
 Cincinnati,2024-03-01,62,68,65
@@ -455,7 +444,6 @@ LA Galaxy,2022-05-01,60,68,64
 New York City FC,2019-09-01,58,68,63
 San Jose Earthquakes,2017-06-01,57,68,62
 Toronto FC,2020-03-01,57,68,62
-Vancouver Whitecaps,2024-06-01,56,68,62
 Cincinnati,2024-11-01,56,68,62
 Cincinnati,2025-03-01,55,68,62
 Nashville SC,2021-06-01,54,68,61
@@ -608,14 +596,12 @@ Orlando City,2025-10-01,71,65,68
 Cincinnati,2023-07-01,69,65,67
 Minnesota United,2022-05-01,68,65,66
 New York City FC,2022-12-01,68,65,66
-Atlanta United,2024-06-01,68,65,66
 Minnesota United,2022-01-01,67,65,66
 CF Montreal,2022-05-01,67,65,66
 Cincinnati,2023-12-01,67,65,66
 FC Dallas,2017-10-01,66,65,66
 Cincinnati,2024-09-01,65,65,65
 Colorado Rapids,2022-05-01,64,65,64
-Philadelphia Union,2024-06-01,64,65,64
 LAFC,2023-07-01,62,65,64
 Orlando City,2021-12-01,61,65,63
 FC Dallas,2016-04-01,60,65,62
@@ -702,7 +688,6 @@ Charlotte,2024-04-01,45,64,54
 Minnesota United,2025-06-01,45,64,54
 DC United,2021-06-01,43,64,54
 Orlando City,2024-04-01,43,64,54
-FC Dallas,2024-06-01,42,64,53
 Charlotte,2024-08-01,42,64,53
 Charlotte,2024-07-01,41,64,52
 FC Dallas,2024-05-01,40,64,52
@@ -838,7 +823,6 @@ Orlando City,2024-10-01,55,61,58
 Houston Dynamo,2019-04-01,54,61,58
 Seattle Sounders,2019-07-01,54,61,58
 Inter Miami,2020-11-01,54,61,58
-St. Louis City,2024-06-01,54,61,58
 Orlando City,2023-10-01,53,61,57
 Toronto FC,2019-10-01,52,61,56
 Chicago Fire,2022-04-01,52,61,56
@@ -860,7 +844,6 @@ CF Montreal,2019-07-01,35,61,48
 Houston Dynamo,2022-03-01,35,61,48
 Orlando City,2020-06-01,33,61,47
 DC United,2021-05-01,30,61,46
-Inter Miami,2024-06-01,73,60,66
 Columbus Crew,2024-08-01,73,60,66
 FC Dallas,2020-08-01,72,60,66
 Columbus Crew,2024-10-01,72,60,66
@@ -1050,7 +1033,6 @@ Vancouver Whitecaps,2017-12-01,57,57,57
 FC Dallas,2022-08-01,57,57,57
 Orlando City,2017-10-01,56,57,56
 Philadelphia Union,2018-07-01,56,57,56
-Colorado Rapids,2024-06-01,55,57,56
 Real Salt Lake,2022-08-01,54,57,56
 LA Galaxy,2018-06-01,53,57,55
 FC Dallas,2020-04-01,53,57,55
@@ -1077,7 +1059,6 @@ Houston Dynamo,2020-08-01,32,57,44
 CF Montreal,2018-08-01,31,57,44
 LAFC,2020-07-01,97,56,76
 Cincinnati,2022-12-01,79,56,68
-Minnesota United,2024-06-01,73,56,64
 Portland Timbers,2017-05-01,72,56,64
 DC United,2018-12-01,71,56,64
 Chicago Fire,2017-07-01,70,56,63
@@ -1146,7 +1127,6 @@ Houston Dynamo,2021-04-01,77,55,66
 Cincinnati,2023-03-01,76,55,66
 Chicago Fire,2017-08-01,71,55,63
 Columbus Crew,2024-04-01,70,55,62
-DC United,2024-06-01,69,55,62
 Chicago Fire,2017-06-01,67,55,61
 San Jose Earthquakes,2019-10-01,66,55,60
 Chicago Fire,2019-06-01,64,55,60
@@ -1200,7 +1180,6 @@ DC United,2019-11-01,41,55,48
 Houston Dynamo,2020-03-01,41,55,48
 DC United,2019-12-01,40,55,48
 Charlotte,2023-06-01,40,55,48
-Austin FC,2024-06-01,40,55,48
 San Jose Earthquakes,2023-11-01,39,55,47
 FC Dallas,2024-04-01,39,55,47
 Austin FC,2025-08-01,39,55,47
@@ -1336,7 +1315,6 @@ Houston Dynamo,2019-11-01,44,53,48
 Colorado Rapids,2016-03-01,42,53,48
 Portland Timbers,2023-09-01,42,53,48
 DC United,2020-03-01,40,53,46
-Chicago Fire,2024-06-01,40,53,46
 New York Red Bulls,2025-05-01,39,53,46
 Chicago Fire,2016-06-01,38,53,46
 Orlando City,2019-10-01,37,53,45
@@ -1438,7 +1416,6 @@ CF Montreal,2017-11-01,50,51,50
 New England Revolution,2016-11-01,49,51,50
 Minnesota United,2019-05-01,49,51,50
 Seattle Sounders,2022-06-01,49,51,50
-Sporting Kansas City,2024-06-01,49,51,50
 Charlotte,2025-12-01,49,51,50
 New England Revolution,2018-09-01,48,51,50
 Chicago Fire,2022-11-01,46,51,48
@@ -1489,7 +1466,6 @@ Chicago Fire,2020-05-01,62,50,56
 Sporting Kansas City,2021-06-01,61,50,56
 Minnesota United,2022-08-01,61,50,56
 Atlanta United,2024-04-01,60,50,55
-Portland Timbers,2024-06-01,60,50,55
 Minnesota United,2023-09-01,59,50,54
 DC United,2017-05-01,58,50,54
 Real Salt Lake,2018-09-01,58,50,54
@@ -1672,7 +1648,6 @@ CF Montreal,2023-10-01,33,48,40
 Sporting Kansas City,2022-08-01,26,48,37
 Toronto FC,2025-04-01,20,48,34
 Sporting Kansas City,2020-08-01,86,47,66
-LA Galaxy,2024-06-01,80,47,64
 Portland Timbers,2017-04-01,78,47,62
 Chicago Fire,2020-12-01,77,47,62
 San Jose Earthquakes,2018-04-01,75,47,61
@@ -1802,12 +1777,10 @@ Real Salt Lake,2018-11-01,61,45,53
 Houston Dynamo,2021-05-01,61,45,53
 New England Revolution,2020-05-01,60,45,52
 Vancouver Whitecaps,2024-03-01,57,45,51
-San Jose Earthquakes,2024-06-01,57,45,51
 Colorado Rapids,2024-10-01,55,45,50
 Austin FC,2022-03-01,54,45,50
 New England Revolution,2023-11-01,54,45,50
 Portland Timbers,2024-03-01,53,45,49
-Toronto FC,2024-06-01,53,45,49
 LA Galaxy,2021-12-01,52,45,48
 DC United,2022-06-01,52,45,48
 Seattle Sounders,2022-07-01,52,45,48
@@ -1886,7 +1859,6 @@ Inter Miami,2023-05-01,40,44,42
 Portland Timbers,2025-10-01,39,44,42
 Atlanta United,2025-11-01,39,44,42
 Toronto FC,2023-04-01,38,44,41
-New England Revolution,2024-06-01,38,44,41
 Chicago Fire,2024-11-01,37,44,40
 CF Montreal,2023-11-01,36,44,40
 New England Revolution,2025-06-01,35,44,40
@@ -2221,7 +2193,6 @@ Chicago Fire,2025-05-01,55,35,45
 CF Montreal,2017-08-01,53,35,44
 Colorado Rapids,2019-09-01,53,35,44
 DC United,2017-08-01,52,35,44
-CF Montreal,2024-06-01,52,35,44
 Minnesota United,2018-08-01,50,35,42
 New England Revolution,2019-10-01,50,35,42
 Portland Timbers,2022-12-01,50,35,42
