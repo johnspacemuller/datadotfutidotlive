@@ -10,15 +10,19 @@ Single-file Streamlit app (`app.py`) with AgGrid tables. Push to `main` auto-dep
 
 ## Stack
 
-Python 3.11, Streamlit >=1.30, pandas >=2.0, streamlit-aggrid >=1.2. No pinned versions. Uses `st.segmented_control()` with radio button fallback for older Streamlit.
+Python 3.11, Streamlit >=1.30, pandas >=2.0, streamlit-aggrid >=1.2, plotly >=5.0. No pinned versions. Uses `st.segmented_control()` with radio button fallback for older Streamlit.
 
 ## How the app is structured
 
-Everything is in `app.py`. Each tab follows the same 4-layer pattern:
+Everything is in `app.py`. Most tabs follow the same 4-layer pattern:
 1. **Constants** at top — `*_COLUMNS` list + `*_DISPLAY_NAMES` dict
 2. **`prepare_*_data()`** — adds Logo/Team columns, renames columns, transforms values
 3. **`render_*_table()`** — builds AgGrid `column_defs` with grouped two-tier headers
 4. **`render_*_tab()`** — loads CSV via `load_data()`, renders filters + table + `render_csv_download()`
+
+**Exception: Team Ratings tab** uses Plotly charts (not AgGrid). Has two views:
+- **Compare Teams**: multi-team lines with hover-to-highlight + click-to-lock (client-side JS via `components.html`). White glow trace behind highlighted line. Team crests at line endpoints via `fig.add_layout_image()`. Team picker is a `st.popover` with checkboxes.
+- **Team History**: single-team with Overall/Attack/Defense lines.
 
 Wired together in `main()` via `st.tabs()`.
 
@@ -35,7 +39,7 @@ No validation exists. Mismatches fail silently (missing logos) or mid-render (Ke
 
 - **`GAMES_PLAYED = 34`** is hardcoded. Used in phases (count → per-game) and team_xg (Totals/Per Game toggle). Must update if season length changes.
 - **Percentiles are relative to the current view**, not league-wide. Filtering by conference recalculates percentiles within that subset.
-- **Session state keys are per-tab** with inconsistent naming: `view_mode`, `styles_view_mode`, `tendencies_view_mode`, `xg_view_mode`. Using the wrong key silently defaults.
+- **Session state keys are per-tab** with inconsistent naming: `view_mode`, `styles_view_mode`, `tendencies_view_mode`, `xg_view_mode`, `history_view_mode`, `history_rating_type`, `hist_cb_{team}`. Using the wrong key silently defaults.
 - **Logo caching** — `@st.cache_data` on logo loading. Changed logo files won't appear until cache clears (usually on script edit).
 - **No column validation** — `load_data()` doesn't check schema. Missing CSV columns produce Pandas KeyError mid-render.
 - **CSS needs `!important`** everywhere to override AgGrid's balham-dark theme.
@@ -58,6 +62,8 @@ No validation exists. Mismatches fail silently (missing logos) or mid-render (Ke
 | `team_styles.csv` | Wide (team_name + style columns) | Has unnamed index column (auto-dropped) |
 | `team_tendencies.csv` | Wide + `season_name` column | Only multi-season CSV |
 | `team_xg.csv` | Wide (team_name + xG metrics + points) | `points` = actual 2025 season points |
+| `team_ratings.csv` | Long (team_name, rating_date, *_pct) | Monthly ratings 2016–2025, powers Team Ratings tab |
+| `team_rating_diagnostics.csv` | Wide (full model output) | Source data with extra columns; reformatted to team_ratings.csv |
 | `logos/` | PNGs named `{team_name}.png` | 30 teams |
 | `drafts/` | Gitignored | Unreleased data (player_ratings.csv) |
 
