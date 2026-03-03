@@ -2523,7 +2523,7 @@ def _apply_chart_layout(fig: go.Figure) -> None:
             gridcolor="rgba(255,255,255,0.06)",
             zeroline=False,
             dtick="M12",
-            tick0="2016-01-01",
+            tick0="2016-07-01",
             tickformat="%Y",
             title=None,
             tickfont=dict(size=13),
