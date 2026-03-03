@@ -861,12 +861,12 @@ def get_file_mtime(path: Path) -> float:
 
 
 @st.cache_data(show_spinner=False)
-def load_data(path: str, _mtime: float) -> pd.DataFrame:
+def load_data(path: str, file_mtime: float) -> pd.DataFrame:
     """
     Load CSV data with Streamlit caching.
 
-    The _mtime parameter (prefixed with _ to exclude from cache key display)
-    ensures the cache invalidates when the file changes.
+    The file_mtime parameter is included in the cache key so the cache
+    invalidates when the file changes on disk.
     """
     df = pd.read_csv(path)
 
