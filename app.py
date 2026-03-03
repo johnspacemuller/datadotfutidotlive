@@ -2503,6 +2503,17 @@ def render_team_xg_tab() -> None:
 
 def _apply_chart_layout(fig: go.Figure) -> None:
     """Apply shared dark-theme Plotly layout styling."""
+    # Add vertical gridlines at Jan 1 of each year as shapes
+    gridline_shapes = [
+        dict(
+            type="line",
+            x0=f"{y}-01-01", x1=f"{y}-01-01",
+            y0=0, y1=1,
+            xref="x", yref="paper",
+            line=dict(color="rgba(255,255,255,0.06)", width=1),
+        )
+        for y in range(2016, 2027)
+    ]
     fig.update_layout(
         height=500,
         margin=dict(l=50, r=0, t=30, b=40),
@@ -2510,6 +2521,7 @@ def _apply_chart_layout(fig: go.Figure) -> None:
         plot_bgcolor="rgba(0,0,0,0)",
         font=dict(family="Inter, system-ui, -apple-system, sans-serif", color="white", size=14),
         hovermode="x unified",
+        shapes=gridline_shapes,
         yaxis=dict(
             range=[0, 100],
             gridcolor="rgba(255,255,255,0.06)",
@@ -2519,8 +2531,7 @@ def _apply_chart_layout(fig: go.Figure) -> None:
             ticksuffix="  ",
         ),
         xaxis=dict(
-            showgrid=True,
-            gridcolor="rgba(255,255,255,0.06)",
+            showgrid=False,
             zeroline=False,
             dtick="M12",
             tick0="2016-07-01",
