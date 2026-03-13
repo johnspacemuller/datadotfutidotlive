@@ -106,35 +106,12 @@ STYLE_COLUMNS = [
 # PLAYER RATINGS DEFINITIONS
 # =============================================================================
 
-RATINGS_COLUMNS = [
-    "overall_rating",
-    "shooting_rating",
-    "dribbling_rating",
-    "receptions_rating",
-    "creation_rating",
-    "linkup_rating",
-    "ballwinning_rating",
-]
+RATINGS_COLUMN = "rating"
+RATINGS_VALUE_COLUMN = "vaep_p90_aa"
 
-RATINGS_DISPLAY_NAMES = {
-    "overall_rating": "Overall",
-    "shooting_rating": "Shooting",
-    "dribbling_rating": "Dribbling",
-    "receptions_rating": "Receptions",
-    "creation_rating": "Creation",
-    "linkup_rating": "Linkup",
-    "ballwinning_rating": "Ball Winning",
-}
-
-# Mapping from display name to the _aa (values) column in the CSV
-RATINGS_VALUES_COLUMNS = {
-    "Overall": "vaep_p90_aa",
-    "Shooting": "shooting_aa",
-    "Dribbling": "dribbling_aa",
-    "Receptions": "receptions_aa",
-    "Creation": "creation_aa",
-    "Linkup": "linkup_aa",
-    "Ball Winning": "ballwinning_aa",
+COMPETITION_NAMES = {
+    1: "MLS",
+    2: "Premier League",
 }
 
 ROLE_DISPLAY_NAMES = {
@@ -772,10 +749,6 @@ def get_player_ratings_table_css() -> dict:
             "background-color": f"{COLORS['dark1']} !important",
             "border-right": "none !important",
         },
-        ".ag-header-cell[col-id='Logo']": {
-            "background-color": f"{COLORS['dark1']} !important",
-            "border-right": "none !important",
-        },
         # Overall rating column - bold green in Ratings mode
         ".overall-rating-cell": {
             "font-weight": "700 !important",
@@ -1103,29 +1076,24 @@ def prepare_player_ratings_data(df: pd.DataFrame, show_values: bool = False) -> 
     Prepare player ratings data for display.
 
     Args:
-        df: Source data with player_name, team_name, role, minutes_played, and rating columns
-        show_values: If True, show _aa per-90 values instead of ratings
+        df: Source data with player_name, role, minutes_played, rating, and vaep_p90_aa columns
+        show_values: If True, show vaep_p90_aa values instead of ratings
 
     Returns:
-        DataFrame with Logo, Player, Role, Minutes, and rating columns ready for AgGrid
+        DataFrame with Player, Role, Minutes, and Rating columns ready for AgGrid
     """
     result = pd.DataFrame()
-    result["Logo"] = df["team_name"].apply(
-        lambda x: get_team_logo_base64(x) if pd.notna(x) else ""
-    )
     result["Player"] = df["player_name"]
+    result["League"] = df["competition_id"].astype(int).map(COMPETITION_NAMES).fillna("Unknown")
     result["Role"] = df["role"]
     result["Minutes"] = df["minutes_played"].astype(int)
 
     if show_values:
-        for display_name, aa_col in RATINGS_VALUES_COLUMNS.items():
-            result[display_name] = df[aa_col].astype(float).round(2)
+        result["Rating"] = df[RATINGS_VALUE_COLUMN].astype(float).round(2)
     else:
-        for col in RATINGS_COLUMNS:
-            display_name = RATINGS_DISPLAY_NAMES[col]
-            result[display_name] = df[col].astype(float).round(0).astype(int)
+        result["Rating"] = df[RATINGS_COLUMN].astype(float).round(0).astype(int)
 
-    return result.sort_values("Overall", ascending=False).reset_index(drop=True)
+    return result.sort_values("Rating", ascending=False).reset_index(drop=True)
 
 
 # =============================================================================
@@ -1826,7 +1794,6 @@ def render_player_ratings_table(data: pd.DataFrame, show_values: bool = False) -
         return
 
     column_defs = [
-        create_logo_column_def(),
         {
             "field": "Player",
             "headerName": "",
@@ -1846,16 +1813,6 @@ def render_player_ratings_table(data: pd.DataFrame, show_values: bool = False) -
         "function(params) { return params.value != null ? params.value.toLocaleString() : '-'; }"
     )
 
-    # Value formatter based on mode
-    if show_values:
-        value_formatter = JsCode(
-            "function(params) { return params.value != null ? params.value.toFixed(2) : '-'; }"
-        )
-    else:
-        value_formatter = JsCode(
-            "function(params) { return params.value != null ? Math.round(params.value).toString() : '-'; }"
-        )
-
     # Sort highlight rule
     sorted_highlight_rule = JsCode("""
         function(params) {
@@ -1866,70 +1823,36 @@ def render_player_ratings_table(data: pd.DataFrame, show_values: bool = False) -
         }
     """)
 
-    # Bold value formatter for Overall column
+    # Rating formatter based on mode
     if show_values:
-        overall_formatter = JsCode(
+        rating_formatter = JsCode(
             "function(params) { return params.value != null ? params.value.toFixed(2) : '-'; }"
         )
     else:
-        overall_formatter = JsCode(
+        rating_formatter = JsCode(
             "function(params) { return params.value != null ? Math.round(params.value).toString() : '-'; }"
         )
 
-    # Overall column - green header in Ratings mode, standard in Values mode
-    overall_header_class = (
-        "phase-band-2 style-header-wrap phase-divider-header"
-        if show_values
-        else "overall-header style-header-wrap phase-divider-header"
-    )
-    overall_col_def = {
-        "field": "Overall",
-        "headerName": "Overall",
-        "width": 90,
-        "minWidth": 80,
-        "valueFormatter": overall_formatter,
-        "type": ["numericColumn"],
-        "cellClass": "numeric-cell overall-rating-cell phase-divider" if not show_values else "numeric-cell phase-divider",
-        "cellClassRules": {
-            "sorted-col-highlight": sorted_highlight_rule,
-        },
-        "sortable": True,
-        "filter": False,
-        "headerClass": overall_header_class,
-        "wrapHeaderText": True,
-        "autoHeaderHeight": True,
-    }
-
-    # Build component rating columns (skip Overall)
-    component_names = [v for k, v in RATINGS_DISPLAY_NAMES.items() if k != "overall_rating"]
-    component_children = []
-    for i, col in enumerate(component_names):
-        is_last = (i == len(component_names) - 1)
-        band_class = "phase-band-1" if i % 2 == 0 else "phase-band-2"
-        base_class = "numeric-cell phase-divider" if is_last else "numeric-cell"
-        col_def = {
-            "field": col,
-            "headerName": col,
-            "minWidth": 105,
-            "flex": 1,
-            "valueFormatter": value_formatter,
-            "type": ["numericColumn"],
-            "cellClass": base_class,
-            "cellClassRules": {
-                "sorted-col-highlight": sorted_highlight_rule,
-            },
+    # League - top-level group header
+    column_defs.append({
+        "headerName": "League",
+        "headerClass": "phase-band-2 phase-divider-header",
+        "children": [{
+            "field": "League",
+            "headerName": "",
+            "width": 130,
+            "minWidth": 100,
             "sortable": True,
             "filter": False,
-            "headerClass": f"{band_class} style-header-wrap" + (" phase-divider-header" if is_last else ""),
-            "wrapHeaderText": True,
-            "autoHeaderHeight": True,
-        }
-        component_children.append(col_def)
+            "cellClass": "numeric-cell phase-divider",
+            "headerClass": "ratings-dark-subheader phase-divider-header",
+        }],
+    })
 
     # Role - top-level group header
     column_defs.append({
         "headerName": "Role",
-        "headerClass": "phase-band-2 phase-divider-header",
+        "headerClass": "phase-band-1 phase-divider-header",
         "children": [{
             "field": "Role",
             "headerName": "",
@@ -1945,7 +1868,7 @@ def render_player_ratings_table(data: pd.DataFrame, show_values: bool = False) -
     # Minutes - top-level group header
     column_defs.append({
         "headerName": "Minutes",
-        "headerClass": "phase-band-1 phase-divider-header",
+        "headerClass": "phase-band-2 phase-divider-header",
         "children": [{
             "field": "Minutes",
             "headerName": "",
@@ -1960,18 +1883,25 @@ def render_player_ratings_table(data: pd.DataFrame, show_values: bool = False) -
         }],
     })
 
-    # Overall - top-level group with green-styled subheader
+    # Rating - top-level group header (same style as Role/Minutes)
     column_defs.append({
-        "headerName": "",
-        "headerClass": "phase-band-1",
-        "children": [overall_col_def],
-    })
-
-    # Component Ratings group
-    column_defs.append({
-        "headerName": "Ratings",
-        "headerClass": "phase-band-1",
-        "children": component_children,
+        "headerName": "Rating",
+        "headerClass": "phase-band-1 phase-divider-header",
+        "children": [{
+            "field": "Rating",
+            "headerName": "",
+            "width": 100,
+            "minWidth": 80,
+            "valueFormatter": rating_formatter,
+            "type": ["numericColumn"],
+            "cellClass": "numeric-cell phase-divider",
+            "cellClassRules": {
+                "sorted-col-highlight": sorted_highlight_rule,
+            },
+            "sortable": True,
+            "filter": False,
+            "headerClass": "ratings-dark-subheader phase-divider-header",
+        }],
     })
 
     # Callbacks
@@ -1988,7 +1918,6 @@ def render_player_ratings_table(data: pd.DataFrame, show_values: bool = False) -
             if (isMobile) {
                 api.applyColumnState({
                     state: [
-                        { colId: 'Logo', pinned: null },
                         { colId: 'Player', pinned: null }
                     ]
                 });
@@ -2889,21 +2818,24 @@ def render_player_ratings_tab() -> None:
 
     df = load_data(str(data_path), get_file_mtime(data_path))
 
-    with st.container(border=True):
-        role_options = ["All Roles"] + sorted(df["role"].dropna().unique().tolist())
-        team_options = ["All Teams"] + sorted(df["team_name"].dropna().unique().tolist())
+    # Map competition_id to league name for filtering
+    df["league"] = df["competition_id"].astype(int).map(COMPETITION_NAMES).fillna("Unknown")
 
-        col_team, col_role, col_minutes, col_toggle = st.columns(
-            [2.5, 2, 1.5, 3], vertical_alignment="center"
+    with st.container(border=True):
+        league_options = ["All Leagues"] + sorted(df["league"].dropna().unique().tolist())
+        role_options = ["All Roles"] + sorted(df["role"].dropna().unique().tolist())
+
+        col_league, col_role, col_minutes, col_toggle = st.columns(
+            [2, 2, 1.5, 3.5], vertical_alignment="center"
         )
 
-        with col_team:
-            team_choice = st.selectbox(
-                "Team",
-                team_options,
+        with col_league:
+            league_choice = st.selectbox(
+                "League",
+                league_options,
                 index=0,
                 label_visibility="collapsed",
-                key="ratings_team",
+                key="ratings_league",
             )
 
         with col_role:
@@ -2939,10 +2871,10 @@ def render_player_ratings_tab() -> None:
                 placeholder="Search players",
             )
 
-        # Filter by team, role, minutes, and player name
+        # Filter by league, role, minutes, and player name
         filtered_df = df.copy()
-        if team_choice != "All Teams":
-            filtered_df = filtered_df[filtered_df["team_name"] == team_choice]
+        if league_choice != "All Leagues":
+            filtered_df = filtered_df[filtered_df["league"] == league_choice]
         if role_choice != "All Roles":
             filtered_df = filtered_df[filtered_df["role"] == role_choice]
         if min_minutes is not None and min_minutes > 0:
@@ -2988,10 +2920,19 @@ def main() -> None:
     st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
     # Main navigation tabs
-    tab_phases, tab_styles, tab_tendencies, tab_xg, tab_history = st.tabs([
-        "Phases", "Team Styles", "Team Tendencies", "Team Performance",
-        "Team Ratings",
-    ])
+    # Player Ratings tab only appears with ?dev=true query param (local dev only)
+    show_player_ratings = st.query_params.get("dev") == "true"
+
+    if show_player_ratings:
+        tab_phases, tab_styles, tab_tendencies, tab_xg, tab_history, tab_ratings = st.tabs([
+            "Phases", "Team Styles", "Team Tendencies", "Team Performance",
+            "Team Ratings", "Player Ratings",
+        ])
+    else:
+        tab_phases, tab_styles, tab_tendencies, tab_xg, tab_history = st.tabs([
+            "Phases", "Team Styles", "Team Tendencies", "Team Performance",
+            "Team Ratings",
+        ])
 
     with tab_phases:
         render_phases_tab()
@@ -3008,9 +2949,9 @@ def main() -> None:
     with tab_history:
         render_rating_history_tab()
 
-    # Player Ratings tab — hidden until ready for public release
-    # with tab_ratings:
-    #     render_player_ratings_tab()
+    if show_player_ratings:
+        with tab_ratings:
+            render_player_ratings_tab()
 
 
 if __name__ == "__main__":
