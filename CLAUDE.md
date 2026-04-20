@@ -10,7 +10,7 @@ Single-file Streamlit app (`app.py`) with AgGrid tables. Push to `main` auto-dep
 
 ## Stack
 
-Python 3.11, Streamlit >=1.30, pandas >=2.0, streamlit-aggrid >=1.2, plotly >=5.0. No pinned versions. Uses `st.segmented_control()` with radio button fallback for older Streamlit.
+Python 3.11, Streamlit 1.52.2, pandas >=2.0, streamlit-aggrid 1.2.1, plotly >=5.0. **Streamlit and streamlit-aggrid are pinned** in `requirements.txt` — do not unpin or bump without testing on Streamlit Cloud. Newer Streamlit versions break AgGrid rendering (all AgGrid tabs go blank while Plotly tabs still work). Uses `st.segmented_control()` with radio button fallback for older Streamlit.
 
 ## How the app is structured
 
@@ -43,6 +43,7 @@ No validation exists. Mismatches fail silently (missing logos) or mid-render (Ke
 - **Logo caching** — `@st.cache_data` on logo loading. Changed logo files won't appear until cache clears (usually on script edit).
 - **No column validation** — `load_data()` doesn't check schema. Missing CSV columns produce Pandas KeyError mid-render.
 - **CSS needs `!important`** everywhere to override AgGrid's balham-dark theme.
+- **Pinned dependencies** — `streamlit` and `streamlit-aggrid` are pinned in `requirements.txt`. Unpinning or bumping Streamlit causes AgGrid tabs to render blank on Streamlit Cloud (the component JS silently fails to load). Always test on Cloud after any version change.
 
 ## AgGrid patterns
 
@@ -69,4 +70,4 @@ No validation exists. Mismatches fail silently (missing logos) or mid-render (Ke
 
 ## Hidden/WIP features
 
-Player Ratings tab: code is fully intact in `app.py` (constants, prep, render, tab function). Commented out in `main()`. Data lives in `drafts/player_ratings.csv`. To re-enable: uncomment in `main()`, add back to `st.tabs()` list.
+Player Ratings tab: code is fully intact in `app.py` (constants, prep, render, tab function). Hidden behind `?dev=true` query param. Data lives in `drafts/player_ratings.csv`. To show publicly: remove the `show_player_ratings` gate in `main()`.
